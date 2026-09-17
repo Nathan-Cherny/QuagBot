@@ -21,6 +21,7 @@ function ChatWindow({ messages, isLoading, onSend }) {
 
         {isLoading && (
           <div className="chat-message chat-message--assistant">
+            <img src="/QuagBotLogo.png" alt="Bot" className="chat-avatar" />
             <div className="chat-message-bubble chat-message-bubble--typing">
               <span className="typing-dot" />
               <span className="typing-dot" />
