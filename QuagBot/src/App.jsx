@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import Sidebar from './components/Sidebar';
-import ChatWindow from './components/ChatWindow';
+import Navbar from './components/Layout/Navbar';
+import Footer from './components/Layout/Footer';
+import Sidebar from './components/Layout/Sidebar';
+import ChatWindow from './components/Chat/ChatWindow';
 import './App.css';
+import ChatHistory from './components/Chat/ChatHistory';
+import ChatSettings from './components/Chat/ChatSettings';
 
 const INITIAL_MESSAGES = [
   {
@@ -39,8 +41,8 @@ function App() {
       <Navbar />
 
       <div className="app-body">
-        <Sidebar side="left" title="Menu">
-          <p className="widget-placeholder">Navigation or conversation list goes here.</p>
+        <Sidebar side="left" title="Chat History">
+          <ChatHistory/>
         </Sidebar>
 
         <main className="app-main">
@@ -51,8 +53,8 @@ function App() {
           />
         </main>
 
-        <Sidebar side="right" title="Details">
-          <p className="widget-placeholder">Context, settings, or tools go here.</p>
+        <Sidebar side="right" title="Chat Settings">
+          <ChatSettings/>
         </Sidebar>
       </div>
 

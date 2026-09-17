@@ -1,4 +1,4 @@
-import UserMenu from './UserMenu';
+import UserMenu from '../User/UserMenu';
 
 function Navbar() {
   return (

@@ -1,4 +1,4 @@
-import UserAvatar from './UserAvatar';
+import UserAvatar from '../User/UserAvatar';
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 

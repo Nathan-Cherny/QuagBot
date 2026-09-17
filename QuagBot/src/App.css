@@ -1,9 +1,9 @@
 :root {
   --color-bg: #fafafa;
-  --color-surface: #ffffff;
+  --color-surface: #eeffff;
   --color-border: #e4e4e7;
-  --color-text: #1f2023;
-  --color-text-muted: #6b6f76;
+  --color-text: #000;
+  --color-text-muted: #3b3f36;
   --color-accent: #2f6feb;
   --color-accent-contrast: #ffffff;
   --color-user-bubble: #2f6feb;
