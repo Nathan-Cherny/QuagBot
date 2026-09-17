@@ -8,8 +8,7 @@ import './App.css';
 const INITIAL_MESSAGES = [
   {
     id: 'welcome',
-    role: 'assistant',
-    text: "Hi! I'm your assistant. Ask me anything to get started.",
+    text: "Hi! I'm your personalized chatbot to answer any questions about the Revolutionary War that you may have. What would you like to ask?",
   },
 ];
 

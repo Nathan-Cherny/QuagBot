@@ -4,7 +4,7 @@ function Navbar() {
   return (
     <header className="navbar">
       <div className='navbar-title'>
-        <span className="navbar-brand">Chatbot UI</span>
+        <span className="navbar-brand">QuagBot</span>
         <img className='navbar-logo' src='/QuagBotLogo.png'></img>
       </div>
       <nav className="navbar-links">
