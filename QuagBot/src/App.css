@@ -1,12 +1,13 @@
 :root {
   --color-bg: #fafafa;
-  --color-surface: #eeffff;
+  --color-surface: #faffff;
   --color-border: #e4e4e7;
   --color-text: #000;
   --color-text-muted: #3b3f36;
   --color-accent: #2f6feb;
   --color-accent-contrast: #ffffff;
   --color-user-bubble: #2f6feb;
+  --main-chat-bg: #dee;
   --color-assistant-bubble: #f1f1f3;
 
   --space-1: 4px;
@@ -153,6 +154,7 @@ body {
   min-width: 0;
   border-left: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
+  background-color: var(--main-chat-bg);
 }
 
 /* Sidebars */
