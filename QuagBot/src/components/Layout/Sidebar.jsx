@@ -1,7 +1,7 @@
 function Sidebar({ side, title, children }) {
   return (
     <aside className={`sidebar sidebar--${side}`}>
-      <h2 className="sidebar-title">{title}</h2>
+      {title && <h2 className="sidebar-title">{title}</h2>}
       <div className="sidebar-content">{children}</div>
     </aside>
   );

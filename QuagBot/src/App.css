@@ -2,6 +2,7 @@
   --color-bg: #fafafa;
   --color-surface: #faffff;
   --color-border: #e4e4e7;
+  --color-important-border: #5a5d6e;
   --color-text: #000;
   --color-text-muted: #3b3f36;
   --color-accent: #2f6feb;
@@ -41,11 +42,12 @@ body {
 
 /* Navbar */
 .navbar {
+  background-color: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) var(--space-5);
-  border-bottom: 2px solid #015d6e;
+  border-bottom: 2px solid var(--color-important-border);
 }
 
 .navbar-title {
@@ -157,8 +159,16 @@ body {
 
 /* Sidebars */
 .sidebar {
-  padding: var(--space-4);
   overflow-y: auto;
+  padding: var(--space-4) var(--space-2);
+}
+
+.sidebar--left {
+  border-right: 1px solid var(--color-border);
+}
+
+.sidebar--right {
+  border-left: 1px solid var(--color-border);
 }
 
 .sidebar-title {
@@ -325,7 +335,7 @@ body {
 /* Footer */
 .footer {
   padding: var(--space-3) var(--space-5);
-  border-top: 1px solid var(--color-border);
+  border-top: 2px solid var(--color-important-border);
   background: var(--color-surface);
   font-size: 0.8rem;
   color: var(--color-text-muted);

@@ -2,7 +2,7 @@ import UserMenu from '../User/UserMenu';
 
 function Navbar() {
   return (
-    <header className="navbar bg-[#ffc18c]">
+    <header className="navbar">
       <div className='navbar-title'>
         <span className="navbar-brand">QuagBot</span>
         <img className='navbar-logo' src='/QuagBotLogo.png'></img>

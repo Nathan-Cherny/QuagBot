@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 
 function ChatPrevious({chat}) {
-  console.log(chat);
+  if(!chat) return
+
   return (
-    <div className="bg-gray-300 w-full">
-      <h3>{chat?.title}</h3>
+    <div title={chat.title} className="text-sm w-full rounded-xl cursor-pointer py-1.25 px-5 text-left hover:bg-gray-300 ">
+      {chat.title}
     </div>
   );
 }

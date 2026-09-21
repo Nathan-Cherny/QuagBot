@@ -36,7 +36,7 @@ function Home() {
 
     return (
         <>
-            <Sidebar side="left">
+            <Sidebar title="" side="left">
                 <ChatHistory />
             </Sidebar>
 
@@ -46,7 +46,7 @@ function Home() {
                 onSend={handleSend}
             />
 
-            <Sidebar side="right">
+            <Sidebar title="Chat Settings" side="right">
                 <ChatSettings />
             </Sidebar>
         </>
