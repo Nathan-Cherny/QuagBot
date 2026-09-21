@@ -8,8 +8,11 @@
   --color-accent: #2f6feb;
   --color-accent-contrast: #ffffff;
   --color-user-bubble: #2f6feb;
-  --main-chat-bg: #dee;
+  --color-main-chat-bg: #d5eeee;
   --color-quagbot-bubble: #f1f1f3;
+  
+  --color-navbar-bg: #9ee6f2;
+  --color-footer-bg: #9ee6f2;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -42,7 +45,7 @@ body {
 
 /* Navbar */
 .navbar {
-  background-color: var(--color-surface);
+  background-color: var(--color-navbar-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -149,14 +152,6 @@ body {
   min-height: 0;
 }
 
-.app-main {
-  display: flex;
-  min-width: 0;
-  border-left: 1px solid var(--color-border);
-  border-right: 1px solid var(--color-border);
-  background-color: var(--main-chat-bg);
-}
-
 /* Sidebars */
 .sidebar {
   overflow-y: auto;
@@ -188,9 +183,12 @@ body {
 /* Chat window */
 .chat-window {
   display: flex;
+  background-color: var(--color-main-chat-bg);
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  max-height: 95vh;
+  overflow-y: scroll
 }
 
 .chat-messages {
@@ -336,9 +334,9 @@ body {
 .footer {
   padding: var(--space-3) var(--space-5);
   border-top: 2px solid var(--color-important-border);
-  background: var(--color-surface);
+  background: var(--color-footer-bg);
   font-size: 0.8rem;
-  color: var(--color-text-muted);
+  color: var(--color-text);
   text-align: center;
   display: flex;
   align-items: center;

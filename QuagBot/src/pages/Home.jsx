@@ -1,23 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ChatWindow from '../components/Chat/ChatWindow';
 import Sidebar from '../components/Layout/Sidebar';
 import ChatHistory from "../components/Chat/ChatHistory"
 import ChatSettings from "../components/Chat/ChatSettings"
 
 
-const INITIAL_MESSAGES = [
-    {
-        id: 'welcome',
-        role: 'quagbot',
-        text: "Hi! I'm your personalized chatbot to answer any questions about the Revolutionary War that you may have. What would you like to ask?",
-    },
-];
+const INITIAL_MESSAGE = {
+    id: 'welcome',
+    role: 'quagbot',
+    text: "Hi! I'm QuagBot, your personalized chatbot to answer any questions about the Revolutionary War that you may have. What would you like to ask?",
+}
 
 function Home() {
-    const [messages, setMessages] = useState(INITIAL_MESSAGES);
     const [isLoading, setIsLoading] = useState(false);
+    const [messages, setMessages] = useState([INITIAL_MESSAGE]);
 
-    function handleSend(text) {
+    function sendTextToBot(text) {
         const userMessage = { id: crypto.randomUUID(), role: 'user', text };
         setMessages((prev) => [...prev, userMessage]);
         setIsLoading(true);
@@ -43,7 +41,7 @@ function Home() {
             <ChatWindow
                 messages={messages}
                 isLoading={isLoading}
-                onSend={handleSend}
+                onSend={sendTextToBot}
             />
 
             <Sidebar title="Chat Settings" side="right">
