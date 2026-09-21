@@ -10,7 +10,7 @@
   --color-user-bubble: #2f6feb;
   --color-main-chat-bg: #d5eeee;
   --color-quagbot-bubble: #f1f1f3;
-  
+
   --color-navbar-bg: #9ee6f2;
   --color-footer-bg: #9ee6f2;
 
@@ -180,6 +180,120 @@ body {
   line-height: 1.5;
 }
 
+/* Generic inner pages (About, Profile, etc.) */
+.page {
+  padding: var(--space-5);
+  margin: auto;
+  width: 50%
+}
+
+.page-title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.2rem;
+}
+
+/* Profile page */
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.profile-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+}
+
+.profile-field + .profile-field {
+  border-top: 1px solid var(--color-border);
+}
+
+.profile-field-label {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.profile-field-value {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  text-align: right;
+}
+
+.profile-field-value--muted {
+  color: var(--color-text-muted);
+}
+
+.profile-field-value--connect {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  letter-spacing: 0.05em;
+}
+
+.profile-field-value--password {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: monospace;
+  letter-spacing: 0.05em;
+}
+
+.profile-password-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.profile-password-toggle:hover {
+  color: var(--color-text);
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.profile-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.profile-button:hover {
+  background: var(--color-bg);
+}
+
+.profile-button--danger {
+  color: #c0362c;
+  border-color: #e9c6c2;
+}
+
+.profile-button--danger:hover {
+  background: #fdf2f1;
+}
+
 /* Chat window */
 .chat-window {
   display: flex;
@@ -188,7 +302,7 @@ body {
   flex: 1;
   min-width: 0;
   max-height: 95vh;
-  overflow-y: scroll
+  overflow-y: scroll;
 }
 
 .chat-messages {

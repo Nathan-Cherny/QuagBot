@@ -1,8 +1,12 @@
+import { useState } from 'react';
+
 function About() {
+
   return (
     <div className="page">
-      <h1>About</h1>
-      <p>Some information about this app.</p>
+      <h1 className="page-title">About QuagBot</h1>
+
+      <p>QuagBot</p>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import UserAvatar from './UserAvatar';
 
 function UserMenu({
   name = 'Account',
-  onSeeAccount = () => console.log('See account clicked'),
+  onSeeAccount = () => window.open("/profile", "blank"),
   onLogout = () => console.log('Logout clicked'),
 }) {
   const [open, setOpen] = useState(false);
