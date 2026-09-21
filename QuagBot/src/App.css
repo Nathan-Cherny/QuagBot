@@ -8,7 +8,7 @@
   --color-accent-contrast: #ffffff;
   --color-user-bubble: #2f6feb;
   --main-chat-bg: #dee;
-  --color-assistant-bubble: #f1f1f3;
+  --color-quagbot-bubble: #f1f1f3;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -202,7 +202,7 @@ body {
   justify-content: flex-end;
 }
 
-.chat-message--assistant {
+.chat-message--quagbot {
   justify-content: flex-start;
 }
 
@@ -212,7 +212,7 @@ body {
   border-radius: 50%;
   flex-shrink: 0;
   object-fit: cover;
-  background: var(--color-assistant-bubble);
+  background: var(--color-quagbot-bubble);
 }
 
 .chat-message-bubble {
@@ -230,8 +230,9 @@ body {
   border-bottom-right-radius: 2px;
 }
 
-.chat-message--assistant .chat-message-bubble {
-  background: var(--color-assistant-bubble);
+.chat-message--quagbot .chat-message-bubble {
+  text-align: left;
+  background: var(--color-quagbot-bubble);
   color: var(--color-text);
   border-bottom-left-radius: 2px;
 }
@@ -329,6 +330,9 @@ body {
   font-size: 0.8rem;
   color: var(--color-text-muted);
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
 }
 
 /* Responsive: collapse widget sidebars on narrow screens */

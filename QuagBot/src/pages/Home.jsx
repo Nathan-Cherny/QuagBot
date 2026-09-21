@@ -8,8 +8,8 @@ import ChatSettings from "../components/Chat/ChatSettings"
 const INITIAL_MESSAGES = [
     {
         id: 'welcome',
-        role: 'assistant',
-        text: "Hi! I'm your assistant. Ask me anything to get started.",
+        role: 'quagbot',
+        text: "Hi! I'm your personalized chatbot to answer any questions about the Revolutionary War that you may have. What would you like to ask?",
     },
 ];
 
@@ -26,7 +26,7 @@ function Home() {
         setTimeout(() => {
             const botMessage = {
                 id: crypto.randomUUID(),
-                role: 'assistant',
+                role: 'quagbot',
                 text: "This is a placeholder response. Connect a backend to make me smarter.",
             };
             setMessages((prev) => [...prev, botMessage]);
