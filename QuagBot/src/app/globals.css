@@ -305,8 +305,8 @@ body {
 }
 
 .page-title {
-  margin: 0 0 var(--space-4);
-  text-align: center;
+  margin: 0 0 var(--space-5);
+  text-align: center; 
   font-size: 2rem;
 }
 
@@ -568,7 +568,6 @@ body {
   border-top: 2px solid var(--color-important-border);
   background: var(--color-footer-bg);
   font-size: 0.8rem;
-  color: var(--color-text);
   text-align: center;
   display: flex;
   align-items: center;
