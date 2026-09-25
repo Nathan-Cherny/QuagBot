@@ -21,13 +21,8 @@ function Profile() {
     console.log("Logout clicked");
   }
 
-  function handlePlaceholder(label) {
-    console.log(`${label} clicked`);
-  }
-
   return (
-    <PageWrapper>
-      <div className="page">
+    <PageWrapper className="basic-page">
         <h1 className="page-title">Hello, {user.name}</h1>
 
         <div className="profile-card">
@@ -108,7 +103,6 @@ function Profile() {
             Log out
           </button>
         </div>
-      </div>
     </PageWrapper>
   );
 }

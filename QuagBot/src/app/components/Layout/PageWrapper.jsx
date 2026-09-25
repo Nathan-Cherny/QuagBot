@@ -1,11 +1,11 @@
 import Footer from "./Footer"
 import Navbar from "./Navbar"
 
-function PageWrapper({ children }) {
+function PageWrapper({ className, children }) {
     return (
         <>
             <Navbar />
-            <div className="app-body">
+            <div className={`app-body ${className}`}>
                 {children}
             </div>
             <Footer />
