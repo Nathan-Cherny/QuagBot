@@ -14,6 +14,9 @@ const INITIAL_MESSAGE = {
 function Home() {
     const [isLoading, setIsLoading] = useState(false);
     const [messages, setMessages] = useState([INITIAL_MESSAGE]);
+    const [textSize, setTextSize] = useState('18px');
+    const [font, setFont] = useState('Arial, sans-serif');
+    const [fontColor, setFontColor] = useState('#000000');
 
     function sendTextToBot(text) {
         const userMessage = { id: crypto.randomUUID(), role: 'user', text };
@@ -42,10 +45,15 @@ function Home() {
                 messages={messages}
                 isLoading={isLoading}
                 onSend={sendTextToBot}
+                responseStyle={{ fontSize: textSize, fontFamily: font, color: fontColor }}
             />
 
-            <Sidebar title="Chat Settings" side="right">
-                <ChatSettings />
+            <Sidebar side="right">
+                <ChatSettings
+                    textSize={textSize} setTextSize={setTextSize}
+                    font={font} setFont={setFont}
+                    fontColor={fontColor} setFontColor={setFontColor}
+                />
             </Sidebar>
         </>
     );

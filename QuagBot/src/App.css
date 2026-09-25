@@ -472,3 +472,69 @@ body {
     border-right: none;
   }
 }
+
+/* Chat settings */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.settings-window h2 {
+  color: black;
+}
+
+.settings-window {
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  padding: 24px;
+  border-radius: 12px;
+  width: 350px;
+  max-width: 90%;
+}
+
+.chat-settings {
+  width: 100%;
+}
+
+.chat-settings-button {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid #000;
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0;
+  text-align: left;
+  color: black;
+}
+
+.settings-field select {
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: black;
+  font: inherit;
+  color-scheme: light;
+}
+
+.settings-preview {
+  margin: 16px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-main-chat-bg);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 
-function ChatWindow({ messages, isLoading, onSend }) {
+function ChatWindow({ messages, isLoading, onSend, responseStyle }) {
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -16,7 +16,7 @@ function ChatWindow({ messages, isLoading, onSend }) {
     <div className="chat-window">
       <div className="chat-messages" ref={scrollRef}>
         {messages.map((message) => (
-          <ChatMessage key={message.id} role={message.role} text={message.text} />
+          <ChatMessage key={message.id} role={message.role} text={message.text} responseStyle={responseStyle} />
         ))}
 
         {isLoading && (

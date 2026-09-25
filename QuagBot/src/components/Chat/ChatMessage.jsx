@@ -4,7 +4,7 @@ import { Copy } from 'lucide-react';
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
-function ChatMessage({ role, text }) {
+function ChatMessage({ role, text, responseStyle }) {
   const isUser = role === 'user';
 
   if (isUser) return (
@@ -24,7 +24,7 @@ function ChatMessage({ role, text }) {
       {!isUser && <img src={BOT_AVATAR_SRC} alt="Bot" className="chat-avatar" />}
 
       <div>
-        <div className="chat-message-bubble">
+        <div className="chat-message-bubble" style={responseStyle}>
           {text}
         </div>
         {<Buttons text={text} />}
