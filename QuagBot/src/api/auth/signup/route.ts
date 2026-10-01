@@ -11,7 +11,7 @@ export async function POST(request: Request) {
             {
                 success: false,
                 message: "username or password is invalid",
-                data: []
+                data: {}
             },
             { status: 400 }
         )
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         { 
             success: true,
             message: "Account has been successfully created",
-            data: [{"username": username}]
+            data: {"username": username}
         },
         { status: 201 }
     )
