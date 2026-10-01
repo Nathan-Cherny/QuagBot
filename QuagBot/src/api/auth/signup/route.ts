@@ -8,7 +8,11 @@ export async function POST(request: Request) {
 
     if (!username || !password) {
         return Response.json(
-            { error: "username or password is invalid" },
+            {
+                success: false,
+                message: "username or password is invalid",
+                data: []
+            },
             { status: 400 }
         )
     }
@@ -21,7 +25,8 @@ export async function POST(request: Request) {
     return Response.json(
         { 
             success: true,
-            username: username
+            message: "Account has been successfully created",
+            data: [{"username": username}]
         },
         { status: 201 }
     )
