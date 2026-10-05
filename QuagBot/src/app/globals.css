@@ -412,6 +412,66 @@ body {
   background: #fdf2f1;
 }
 
+/* Sign up / Log in pages (reuse the profile card styles) */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-field {
+  cursor: text;
+}
+
+.auth-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.auth-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 260px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+.auth-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.auth-submit {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 500;
+}
+
+.auth-submit:hover {
+  background: var(--color-accent);
+  filter: brightness(0.95);
+}
+
+.auth-switch {
+  margin-top: var(--space-4);
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.auth-switch a {
+  color: var(--color-accent);
+}
+
 /* Chat window */
 .chat-window {
   display: flex;
