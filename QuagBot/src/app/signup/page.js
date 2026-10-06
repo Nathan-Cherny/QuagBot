@@ -9,12 +9,10 @@ function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  // Placeholder — will hold the teacher the user picks once connecting is built.
   const [connectedTeacher] = useState(null);
 
   function handleSubmit(event) {
     event.preventDefault();
-    // Swap this for your real sign up logic (create account, start session, redirect, etc.)
     console.log("Sign up submitted", { name, email, connectedTeacher });
   }
 
@@ -25,7 +23,7 @@ function SignUp() {
       <form className="auth-form" onSubmit={handleSubmit}>
         <div className="profile-card">
           <label className="profile-field auth-field">
-            <span className="profile-field-label">Name</span>
+            <span className="profile-field-label required">Name</span>
             <input
               type="text"
               className="auth-input"
@@ -38,7 +36,7 @@ function SignUp() {
           </label>
 
           <label className="profile-field auth-field">
-            <span className="profile-field-label">Email</span>
+            <span className="profile-field-label required">Email</span>
             <input
               type="email"
               className="auth-input"
@@ -51,7 +49,7 @@ function SignUp() {
           </label>
 
           <div className="profile-field auth-field">
-            <label className="profile-field-label" htmlFor="signup-password">
+            <label className="profile-field-label required" htmlFor="signup-password">
               Password
             </label>
             <span className="auth-input-wrap">
