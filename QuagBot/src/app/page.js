@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ChatWindow from './components/Chat/ChatWindow';
 import Sidebar from './components/Layout/Sidebar';
 import ChatHistory from "./components/Chat/ChatHistory"
@@ -19,6 +19,8 @@ function Home() {
     const [textSize, setTextSize] = useState('18px');
     const [font, setFont] = useState('Arial, sans-serif');
     const [fontColor, setFontColor] = useState('#000000');
+    const [activeChat, setActiveChat] = useState(null);
+    const pendingReply = useRef(null);
 
     function sendTextToBot(text) {
         const userMessage = { id: crypto.randomUUID(), role: 'user', text };
@@ -26,7 +28,7 @@ function Home() {
         setIsLoading(true);
 
         // Placeholder response logic. Swap this out for a real API call.
-        setTimeout(() => {
+        pendingReply.current = setTimeout(() => {
             const botMessage = {
                 id: crypto.randomUUID(),
                 role: 'quagbot',
@@ -34,13 +36,26 @@ function Home() {
             };
             setMessages((prev) => [...prev, botMessage]);
             setIsLoading(false);
+            pendingReply.current = null;
         }, 700);
+    }
+
+    // Replace the displayed conversation with a previous chat's messages.
+    function loadChat(chat) {
+        // Drop any in-flight reply so it doesn't get appended to the newly loaded chat.
+        if (pendingReply.current) {
+            clearTimeout(pendingReply.current);
+            pendingReply.current = null;
+        }
+        setIsLoading(false);
+        setMessages([...chat.content]);
+        setActiveChat(chat);
     }
 
     return (
         <PageWrapper>
             <Sidebar title="" side="left">
-                <ChatHistory />
+                <ChatHistory onSelectChat={loadChat} activeChat={activeChat} />
             </Sidebar>
 
             <ChatWindow

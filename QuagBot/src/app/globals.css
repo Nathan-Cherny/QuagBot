@@ -280,6 +280,14 @@ body {
   background: var(--color-bg);
 }
 
+/* Chat page only: pin the page to the viewport height so .app-body (flex: 1)
+   gets exactly the space between the navbar and footer. The chat window then
+   fills that space and only .chat-messages scrolls once it overflows.
+   Other pages keep the normal growing body and scroll as usual. */
+body:has(.chat-window) {
+  height: 100%;
+}
+
 /* Body layout: left sidebar / chat / right sidebar */
 .app-body {
   flex: 1;
@@ -507,8 +515,8 @@ body {
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  max-height: 95vh;
-  overflow-y: scroll;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-messages {
@@ -550,6 +558,18 @@ body {
   font-size: 0.92rem;
   line-height: 1.45;
   white-space: pre-wrap;
+}
+
+/* Wraps a bot bubble + its action buttons. The width cap lives here rather than
+   on the bubble: a percentage max-width on a child of a shrink-to-fit parent
+   resolves against the already-shrunken parent, which made short replies wrap. */
+.chat-message-content {
+  max-width: 60%;
+  min-width: 0;
+}
+
+.chat-message-content .chat-message-bubble {
+  max-width: none;
 }
 
 .chat-message--user .chat-message-bubble {
