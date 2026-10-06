@@ -200,6 +200,26 @@ body {
   color: var(--color-text);
 }
 
+.navbar-link.active {
+    position: relative;
+}
+
+.navbar-link.active::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(
+        to right,
+        transparent,
+        black 25%,
+        black 75%,
+        transparent
+    );
+}
+
 /* User menu */
 .user-menu {
   position: relative;
