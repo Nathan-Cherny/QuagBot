@@ -24,7 +24,7 @@ function ChatMessage({ role, text, responseStyle }) {
     <div className={`chat-message ${isUser ? 'chat-message--user' : 'chat-message--quagbot'}`}>
       {!isUser && <img src={BOT_AVATAR_SRC} alt="Bot" className="chat-avatar" />}
 
-      <div>
+      <div className="chat-message-content">
         <div className="chat-message-bubble" style={responseStyle}>
           {text}
         </div>

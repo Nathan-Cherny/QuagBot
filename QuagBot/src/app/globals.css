@@ -552,6 +552,18 @@ body {
   white-space: pre-wrap;
 }
 
+/* Wraps a bot bubble + its action buttons. The width cap lives here rather than
+   on the bubble: a percentage max-width on a child of a shrink-to-fit parent
+   resolves against the already-shrunken parent, which made short replies wrap. */
+.chat-message-content {
+  max-width: 60%;
+  min-width: 0;
+}
+
+.chat-message-content .chat-message-bubble {
+  max-width: none;
+}
+
 .chat-message--user .chat-message-bubble {
   background: var(--color-user-bubble);
   color: var(--color-accent-contrast);
