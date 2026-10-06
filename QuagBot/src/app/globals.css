@@ -280,6 +280,14 @@ body {
   background: var(--color-bg);
 }
 
+/* Chat page only: pin the page to the viewport height so .app-body (flex: 1)
+   gets exactly the space between the navbar and footer. The chat window then
+   fills that space and only .chat-messages scrolls once it overflows.
+   Other pages keep the normal growing body and scroll as usual. */
+body:has(.chat-window) {
+  height: 100%;
+}
+
 /* Body layout: left sidebar / chat / right sidebar */
 .app-body {
   flex: 1;
@@ -507,8 +515,8 @@ body {
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  max-height: 95vh;
-  overflow-y: scroll;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-messages {
