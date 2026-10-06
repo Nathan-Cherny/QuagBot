@@ -120,11 +120,11 @@ code {
   --color-accent: #2f6feb;
   --color-accent-contrast: #ffffff;
   --color-user-bubble: #2f6feb;
-  --color-main-chat-bg: #d5eeee;
+  --color-main-chat-bg: rgb(215, 220, 220);
   --color-quagbot-bubble: #f1f1f3;
 
-  --color-navbar-bg: #9ee6f2;
-  --color-footer-bg: #9ee6f2;
+  --color-navbar-bg: rgb(200, 230, 242);
+  --color-footer-bg: rgb(200, 230, 242);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -191,6 +191,7 @@ body {
   color: var(--color-text-muted);
   text-decoration: none;
   display: flex;
+  align-items: center;
   gap: 5px;
   font-size: 0.9rem;
 }

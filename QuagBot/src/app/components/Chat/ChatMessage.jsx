@@ -6,12 +6,13 @@ const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
 function ChatMessage({ role, text, responseStyle }) {
   const isUser = role === 'user';
+  const { fontSize, fontFamily } = responseStyle
 
   if (isUser) return (
     <div className={`chat-message ${isUser ? 'chat-message--user' : 'chat-message--quagbot'}`}>
       {!isUser && <img src={BOT_AVATAR_SRC} alt="Bot" className="chat-avatar" />}
 
-      <div className="chat-message-bubble">
+      <div className="chat-message-bubble" style={{fontSize, fontFamily}}>
         {text}
       </div>
 
