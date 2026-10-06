@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import ChatPrevious from "./ChatPrevious";
 
-function ChatHistory() {
+function ChatHistory({ onSelectChat, activeChat }) {
   const [chats, setChats] = useState([
     {
       title: "Example Chat", content: [
@@ -13,12 +13,12 @@ function ChatHistory() {
         {
           "id": "168d106c-7133-4fbd-999e-3d4288f777ef",
           "role": "user",
-          "text": "test"
+          "text": "hey whats up man"
         },
         {
           "id": "2965a208-a2fb-4621-9f7c-1de94b27101a",
           "role": "quagbot",
-          "text": "This is a placeholder response. Connect a backend to make me smarter."
+          "text": "Howdy pardner"
         }
       ]
     },
@@ -32,12 +32,12 @@ function ChatHistory() {
         {
           "id": "168d106c-7133-4fbd-999e-3d4288f777ef",
           "role": "user",
-          "text": "test"
+          "text": "Who is George Washington"
         },
         {
           "id": "2965a208-a2fb-4621-9f7c-1de94b27101a",
           "role": "quagbot",
-          "text": "This is a placeholder response. Connect a backend to make me smarter."
+          "text": "idk lol go read a book"
         }
       ]
     },
@@ -51,12 +51,12 @@ function ChatHistory() {
         {
           "id": "168d106c-7133-4fbd-999e-3d4288f777ef",
           "role": "user",
-          "text": "test"
+          "text": "What does Leinad mean?"
         },
         {
           "id": "2965a208-a2fb-4621-9f7c-1de94b27101a",
           "role": "quagbot",
-          "text": "This is a placeholder response. Connect a backend to make me smarter."
+          "text": "It's quite straightforward, actually. It's quite straightforward, actually. It's quite straightforward, actually. It's quite straightforward, actually."
         }
       ]
     }
@@ -65,8 +65,8 @@ function ChatHistory() {
   return (
     <div className="max-w-50 overflow-x-hidden text-nowrap">
       <h2 className="sidebar-title">Chat History</h2>
-      <div>
-        {chats.map((chat, i) => <ChatPrevious key={i} chat={chat} />)}
+      <div className="flex flex-col gap-1">
+        {chats.map((chat, i) => <ChatPrevious key={i} chat={chat} isActive={chat === activeChat} onSelect={onSelectChat} />)}
       </div>
     </div>
   );

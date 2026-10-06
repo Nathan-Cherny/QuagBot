@@ -6,7 +6,6 @@ function ChatWindow({ messages, isLoading, onSend, responseStyle }) {
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    console.log(messages)
     const el = scrollRef.current;
     if (el) {
       el.scrollTop = el.scrollHeight;
