@@ -13,3 +13,24 @@ export const users = pgTable("users", {
         .notNull()
         .defaultNow()
 })
+
+export const classrooms = pgTable("classrooms", {
+    classId: integer("id")
+        .primaryKey()
+        .generatedAlwaysAsIdentity(),
+
+    name: varchar("name", {length: 100} )
+        .notNull()
+        .unique(),
+    
+    joinId: varchar("joinId", { length: 255 })
+        .notNull()
+        .unique(),
+    
+    ownerId: integer("ownerId")
+        .notNull(),
+    
+    createdAt: timestamp("createdAt")
+        .notNull()
+        .defaultNow()
+})
