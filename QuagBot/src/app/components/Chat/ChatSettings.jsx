@@ -23,11 +23,18 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
             <label className="settings-field">
               Font
               <select value={font} onChange={(event) => setFont(event.target.value)}>
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="Verdana, sans-serif">Verdana</option>
-                <option value="Georgia, serif">Georgia</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-                <option value="'Courier New', monospace">Courier New</option>
+                <FontSetting font={"Arial, sans-serif"} />
+                <FontSetting font={"Verdana, sans-serif"} />
+                <FontSetting font={"Georgia, serif"} />
+                <FontSetting font={"Lucida Sans, serif"} />
+                <FontSetting font={"Monaco, serif"} />
+                <FontSetting font={"'Times New Roman', serif"} />
+                <FontSetting font={"'Courier New', monospace"} />
+                <FontSetting font={"Comic Sans MS, monospace"} />
+                <FontSetting font={"Impact, monospace"} />
+                <FontSetting font={"Papyrus, monospace"} />
+                <FontSetting font={"Symbol, serif"} />
+                <FontSetting font={"Webdings, serif"} />
               </select>
             </label>
             <label className="settings-field">
@@ -52,6 +59,10 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
       )}
     </div>
   );
+}
+
+function FontSetting({font}){
+  return <option style={{fontFamily: font}} value={font}>{font.split(",")[0].replaceAll("'", "")}</option>
 }
 
 export default ChatSettings;
