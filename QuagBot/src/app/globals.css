@@ -763,3 +763,14 @@ body:has(.chat-window) {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+
+.auth-error {
+  color: #b42318;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+}
+
+.auth-notice {
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+}

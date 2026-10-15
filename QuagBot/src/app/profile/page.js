@@ -1,24 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { Eye, EyeOff, LogOut, PlugZap, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { LogOut, PlugZap } from "lucide-react";
 import PageWrapper from "../components/Layout/PageWrapper";
-
-// Placeholder user data — replace with your real auth/user state.
-const MOCK_USER = {
-  name: "Killua Zoldyck",
-  email: "kzoldyck@example.com",
-  password: "Gonismyboyfriend123!",
-  connectedTeacher: null,
-};
+import { createClient } from "@/lib/supabase/client";
 
 function Profile() {
-  const [user, setUser] = useState(MOCK_USER);
-  const [showPassword, setShowPassword] = useState(false);
+  const [user, setUser] = useState(null);
+  const router = useRouter();
 
-  function handleLogout() {
-    // Swap this for your real logout logic (clear auth token, redirect, etc.)
-    console.log("Logout clicked");
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      setUser({
+        name: data.user.user_metadata?.display_name ?? "Student",
+        email: data.user.email,
+        connectedTeacher: null, // TODO: load from the classrooms table
+      });
+    });
+  }, []);
+
+  async function handleLogout() {
+    await createClient().auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
+  if (!user) {
+    return <PageWrapper className="basic-page"><p>Loading…</p></PageWrapper>;
   }
 
   return (
@@ -34,21 +45,6 @@ function Profile() {
           <div className="profile-field">
             <span className="profile-field-label">Email</span>
             <span className="profile-field-value">{user.email}</span>
-          </div>
-
-          <div className="profile-field">
-            <span className="profile-field-label">Password</span>
-            <span className="profile-field-value profile-field-value--password">
-              {showPassword ? user.password : "••••••••••"}
-              <button
-                type="button"
-                className="profile-password-toggle"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </span>
           </div>
 
           <div className="profile-field">
