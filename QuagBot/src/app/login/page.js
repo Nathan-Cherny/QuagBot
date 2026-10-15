@@ -1,18 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import PageWrapper from "../components/Layout/PageWrapper";
+import { createClient } from "@/lib/supabase/client";
 
 function LogIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    // Swap this for your real log in logic (verify credentials, start session, redirect, etc.)
-    console.log("Log in submitted", { email });
+    setError("");
+    setSubmitting(true);
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    setSubmitting(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    router.push("/");
+    router.refresh(); // re-run server code so it sees the new session cookie
   }
 
   return (
@@ -61,9 +77,11 @@ function LogIn() {
           </div>
         </div>
 
+        {error && <p className="auth-error" role="alert">{error}</p>}
+
         <div className="profile-actions">
-          <button type="submit" className="profile-button auth-submit">
-            Log in
+          <button type="submit" className="profile-button auth-submit" disabled={submitting}>
+            {submitting ? "Logging in…" : "Log in"}
           </button>
         </div>
       </form>
