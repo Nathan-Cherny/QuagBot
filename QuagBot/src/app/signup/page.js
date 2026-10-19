@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, PlugZap } from "lucide-react";
 import PageWrapper from "../components/Layout/PageWrapper";
+import { createClient } from "@/lib/supabase/client";
 
 function SignUp() {
   const [name, setName] = useState("");
@@ -10,10 +12,38 @@ function SignUp() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [connectedTeacher] = useState(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    console.log("Sign up submitted", { name, email, connectedTeacher });
+    setError("");
+    setNotice("");
+    setSubmitting(true);
+
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      // Stored on the user; the database trigger copies it into profiles.
+      options: { data: { display_name: name } },
+    });
+
+    setSubmitting(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    // With "Confirm email" on, Supabase creates the user but no session yet.
+    if (!data.session) {
+      setNotice("Check your email to confirm your account, then log in.");
+      return;
+    }
+    // TODO: connecting to a teacher needs the classrooms join-code flow; do it after login.
+    router.push("/");
+    router.refresh();
   }
 
   return (
@@ -55,6 +85,7 @@ function SignUp() {
             <span className="auth-input-wrap">
               <input
                 id="signup-password"
+                minLength={8}
                 type={showPassword ? "text" : "password"}
                 className="auth-input"
                 placeholder="Create a password"
@@ -93,9 +124,12 @@ function SignUp() {
           </div>
         </div>
 
+        {error && <p className="auth-error" role="alert">{error}</p>}
+        {notice && <p className="auth-notice">{notice}</p>}
+
         <div className="profile-actions">
-          <button type="submit" className="profile-button auth-submit">
-            Sign up
+          <button type="submit" className="profile-button auth-submit" disabled={submitting}>
+            {submitting ? "Creating account…" : "Sign up"}
           </button>
         </div>
       </form>

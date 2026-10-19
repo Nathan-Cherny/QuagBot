@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import UserAvatar from './UserAvatar';
+import { createClient } from '@/lib/supabase/client';
 
-function UserMenu({
-  name = 'Account',
-  onSeeAccount = () => window.open("/profile", "blank"),
-  onLogout = () => console.log('Logout clicked'),
-}) {
+function UserMenu({ name = 'Account', onSeeAccount, onLogout }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  const seeAccount = onSeeAccount ?? (() => router.push('/profile'));
+  const logout = onLogout ?? (async () => {
+    await createClient().auth.signOut();
+    router.push('/login');
+    router.refresh();
+  });
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -21,12 +27,12 @@ function UserMenu({
 
   function handleSeeAccount() {
     setOpen(false);
-    onSeeAccount();
+    seeAccount();
   }
 
   function handleLogout() {
     setOpen(false);
-    onLogout();
+    logout();
   }
 
   return (
