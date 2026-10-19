@@ -111,20 +111,20 @@ code {
 }
 
 :root {
-  --color-bg: #fafafa;
+  --color-bg: #f9f9f9;
   --color-surface: #faffff;
   --color-border: #e4e4e7;
-  --color-important-border: #5a5d6e;
+  --color-important-border: #003755;
   --color-text: #000;
   --color-text-muted: #3b3f36;
   --color-accent: #2f6feb;
   --color-accent-contrast: #ffffff;
   --color-user-bubble: #2f6feb;
-  --color-main-chat-bg: rgb(215, 220, 220);
-  --color-quagbot-bubble: #f1f1f3;
+  --color-main-chat-bg: rgb(245, 245, 245);
+  --color-quagbot-bubble: #e2e2e2;
 
-  --color-navbar-bg: rgb(200, 230, 242);
-  --color-footer-bg: rgb(200, 230, 242);
+  --color-navbar-bg: rgb(230, 235, 245);
+  --color-footer-bg: rgb(230, 235, 245);
 
   --space-1: 4px;
   --space-2: 8px;
