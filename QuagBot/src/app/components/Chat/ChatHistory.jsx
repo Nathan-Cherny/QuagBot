@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import ChatPrevious from "./ChatPrevious";
+import { sidebarTitle } from "../ui/styles";
 
 function ChatHistory({ onSelectChat, activeChat }) {
   const [chats, setChats] = useState([
@@ -64,7 +65,7 @@ function ChatHistory({ onSelectChat, activeChat }) {
 
   return (
     <div className="max-w-50 overflow-x-hidden text-nowrap">
-      <h2 className="sidebar-title">Chat History</h2>
+      <h2 className={sidebarTitle}>Chat History</h2>
       <div className="flex flex-col gap-1">
         {chats.map((chat, i) => <ChatPrevious key={i} chat={chat} isActive={chat === activeChat} onSelect={onSelectChat} />)}
       </div>
