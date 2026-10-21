@@ -34,10 +34,10 @@ CREATE TABLE public.chat_messages (
 
 CREATE TABLE public.classroom_members (
   class_id uuid REFERENCES public.classrooms(id),
-  user_id uuid REFERENCES public.profiles(id)
+  user_id uuid REFERENCES public.profiles(id),
 
   PRIMARY KEY (class_id, user_id)
-)
+);
 
 -- Auto-create a profile row whenever someone signs up.
 -- role is NOT read from signup metadata: users control that, so they could make themselves teachers.
