@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, PlugZap } from "lucide-react";
+import { PlugZap } from "lucide-react";
+import LogOutButton from "../components/Layout/Elements/LogOutButton";
+
 import PageWrapper from "../components/Layout/PageWrapper";
 import {
   button,
@@ -102,14 +104,8 @@ function Profile() {
             Place holder 3
           </button>
 
-          <button
-            type="button"
-            className={buttonDanger}
-            onClick={handleLogout}
-          >
-            <LogOut size={16} />
-            Log out
-          </button>
+          <LogOutButton handleLogout={handleLogout}/>
+
         </div>
     </PageWrapper>
   );

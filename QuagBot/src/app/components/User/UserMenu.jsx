@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import UserAvatar from './UserAvatar';
 import { createClient } from '@/lib/supabase/client';
+import { buttonDanger, logoutButton } from '../ui/styles';
+import LogOutButton from '../Layout/Elements/LogOutButton';
 
 const MENU_ITEM = "cursor-pointer rounded-[6px] border-none bg-transparent px-space-3 py-space-2 text-left text-[0.88rem] text-text hover:bg-bg";
 
@@ -67,18 +69,16 @@ function UserMenu({ name = 'Account', onSeeAccount, onLogout }) {
         aria-haspopup="true"
         aria-expanded={open}
       >
-        <UserAvatar className="size-[28px] shrink-0 rounded-full" />
+        <UserAvatar className="size-7 shrink-0 rounded-full" />
         <span>{displayName ?? name}</span>
       </button>
 
       {open && (
-        <div className="absolute top-[calc(100%+8px)] right-0 z-10 flex min-w-[160px] flex-col rounded-card border border-border bg-surface p-space-1" role="menu">
+        <div className="absolute top-[calc(100%+8px)] right-0 z-10 flex min-w-40 flex-col rounded-card border border-border bg-surface p-space-1" role="menu">
           <button type="button" className={MENU_ITEM} role="menuitem" onClick={handleSeeAccount}>
             See account
           </button>
-          <button type="button" className={MENU_ITEM} role="menuitem" onClick={handleLogout}>
-            Log out
-          </button>
+          <LogOutButton className={`justify-start`} handleLogout={handleLogout}/>
         </div>
       )}
     </div>
