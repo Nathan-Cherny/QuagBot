@@ -3,6 +3,8 @@ import { useRouter } from 'next/navigation';
 import UserAvatar from './UserAvatar';
 import { createClient } from '@/lib/supabase/client';
 
+const MENU_ITEM = "cursor-pointer rounded-[6px] border-none bg-transparent px-space-3 py-space-2 text-left text-[0.88rem] text-text hover:bg-bg";
+
 function UserMenu({ name = 'Account', onSeeAccount, onLogout }) {
   const [open, setOpen] = useState(false);
   const [displayName, setDisplayName] = useState(null);
@@ -57,24 +59,24 @@ function UserMenu({ name = 'Account', onSeeAccount, onLogout }) {
   }
 
   return (
-    <div className="user-menu" ref={menuRef}>
+    <div className="relative" ref={menuRef}>
       <button
         type="button"
-        className="user-menu-trigger"
+        className="flex cursor-pointer items-center gap-space-2 rounded-card border border-transparent bg-transparent px-space-2 py-space-1 text-[0.88rem] text-text hover:border-border"
         onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="true"
         aria-expanded={open}
       >
-        <UserAvatar className="user-menu-avatar" />
-        <span className="user-menu-name">{displayName ?? name}</span>
+        <UserAvatar className="size-[28px] shrink-0 rounded-full" />
+        <span>{displayName ?? name}</span>
       </button>
 
       {open && (
-        <div className="user-menu-dropdown" role="menu">
-          <button type="button" className="user-menu-item" role="menuitem" onClick={handleSeeAccount}>
+        <div className="absolute top-[calc(100%+8px)] right-0 z-10 flex min-w-[160px] flex-col rounded-card border border-border bg-surface p-space-1" role="menu">
+          <button type="button" className={MENU_ITEM} role="menuitem" onClick={handleSeeAccount}>
             See account
           </button>
-          <button type="button" className="user-menu-item" role="menuitem" onClick={handleLogout}>
+          <button type="button" className={MENU_ITEM} role="menuitem" onClick={handleLogout}>
             Log out
           </button>
         </div>

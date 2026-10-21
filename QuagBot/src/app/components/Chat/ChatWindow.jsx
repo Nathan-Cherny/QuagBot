@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
+import { chatAvatar, chatMessageRow } from '../ui/styles';
+
+const TYPING_DOT = 'size-[6px] animate-typing-bounce rounded-full bg-text-muted';
 
 function ChatWindow({ messages, isLoading, onSend, responseStyle }) {
   const scrollRef = useRef(null);
@@ -13,19 +16,19 @@ function ChatWindow({ messages, isLoading, onSend, responseStyle }) {
   }, [messages, isLoading]);
 
   return (
-    <div className="chat-window">
-      <div className="chat-messages" ref={scrollRef}>
+    <div data-chat-window className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-main-chat-bg">
+      <div className="flex flex-1 flex-col gap-space-3 overflow-y-auto p-space-5" ref={scrollRef}>
         {messages.map((message) => (
           <ChatMessage key={message.id} role={message.role} text={message.text} responseStyle={responseStyle} />
         ))}
 
         {isLoading && (
-          <div className="chat-message chat-message--assistant">
-            <img src="/QuagBotLogo.png" alt="Bot" className="chat-avatar" />
-            <div className="chat-message-bubble chat-message-bubble--typing">
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-              <span className="typing-dot" />
+          <div className={chatMessageRow}>
+            <img src="/QuagBotLogo.png" alt="Bot" className={chatAvatar} />
+            <div className="flex max-w-[60%] items-center gap-[4px] px-space-4 py-space-3">
+              <span className={TYPING_DOT} />
+              <span className={`${TYPING_DOT} [animation-delay:0.15s]`} />
+              <span className={`${TYPING_DOT} [animation-delay:0.3s]`} />
             </div>
           </div>
         )}

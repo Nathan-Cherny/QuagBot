@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, PlugZap } from "lucide-react";
 import PageWrapper from "../components/Layout/PageWrapper";
+import {
+  button,
+  buttonDanger,
+  buttonStack,
+  card,
+  cardRow,
+  iconButton,
+  pageTitle,
+  rowLabel,
+  rowValue,
+  rowValueConnect,
+} from "../components/ui/styles";
 import { createClient } from "@/lib/supabase/client";
 
 function Profile() {
@@ -29,32 +41,32 @@ function Profile() {
   }
 
   if (!user) {
-    return <PageWrapper className="basic-page"><p>Loading…</p></PageWrapper>;
+    return <PageWrapper basic><p>Loading…</p></PageWrapper>;
   }
 
   return (
-    <PageWrapper className="basic-page">
-        <h1 className="page-title">Hello, {user.name}</h1>
+    <PageWrapper basic>
+        <h1 className={pageTitle}>Hello, {user.name}</h1>
 
-        <div className="profile-card">
-          <div className="profile-field">
-            <span className="profile-field-label">Name</span>
-            <span className="profile-field-value">{user.name}</span>
+        <div className={card}>
+          <div className={cardRow}>
+            <span className={rowLabel}>Name</span>
+            <span className={rowValue}>{user.name}</span>
           </div>
 
-          <div className="profile-field">
-            <span className="profile-field-label">Email</span>
-            <span className="profile-field-value">{user.email}</span>
+          <div className={cardRow}>
+            <span className={rowLabel}>Email</span>
+            <span className={rowValue}>{user.email}</span>
           </div>
 
-          <div className="profile-field">
-            <span className="profile-field-label">Connected teacher</span>
-            <span className="profile-field-value profile-field-value--connect">
+          <div className={cardRow}>
+            <span className={rowLabel}>Connected teacher</span>
+            <span className={rowValueConnect}>
               {user.connectedTeacher ?? "Not connected"}
               {!user.connectedTeacher && (
                 <button
                   type="button"
-                  className="profile-password-toggle"
+                  className={iconButton}
                   title="Connect to your teacher"
                   aria-label={"Connect"}
                 >
@@ -65,10 +77,10 @@ function Profile() {
           </div>
         </div>
 
-        <div className="profile-actions">
+        <div className={buttonStack}>
           <button
             type="button"
-            className="profile-button"
+            className={button}
             onClick={() => console.log("test")}
           >
             Placeholder 1
@@ -76,7 +88,7 @@ function Profile() {
 
           <button
             type="button"
-            className="profile-button"
+            className={button}
             onClick={() => console.log("test")}
           >
             Placeholder 2
@@ -84,7 +96,7 @@ function Profile() {
 
           <button
             type="button"
-            className="profile-button"
+            className={button}
             onClick={() => console.log("test")}
           >
             Place holder 3
@@ -92,7 +104,7 @@ function Profile() {
 
           <button
             type="button"
-            className="profile-button profile-button--danger"
+            className={buttonDanger}
             onClick={handleLogout}
           >
             <LogOut size={16} />

@@ -4,6 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import PageWrapper from "../components/Layout/PageWrapper";
+import {
+  authError,
+  authInput,
+  authInputWrap,
+  authLink,
+  authSwitch,
+  buttonPrimary,
+  buttonStack,
+  card,
+  cardRowInput,
+  iconButton,
+  pageTitle,
+  rowLabel,
+} from "../components/ui/styles";
 import { createClient } from "@/lib/supabase/client";
 
 function LogIn() {
@@ -32,16 +46,16 @@ function LogIn() {
   }
 
   return (
-    <PageWrapper className="basic-page">
-      <h1 className="page-title">Welcome back</h1>
+    <PageWrapper basic>
+      <h1 className={pageTitle}>Welcome back</h1>
 
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <div className="profile-card">
-          <label className="profile-field auth-field">
-            <span className="profile-field-label">Email</span>
+      <form className="flex flex-col" onSubmit={handleSubmit}>
+        <div className={card}>
+          <label className={cardRowInput}>
+            <span className={rowLabel}>Email</span>
             <input
               type="email"
-              className="auth-input"
+              className={authInput}
               placeholder="you@example.com"
               autoComplete="email"
               value={email}
@@ -50,15 +64,15 @@ function LogIn() {
             />
           </label>
 
-          <div className="profile-field auth-field">
-            <label className="profile-field-label" htmlFor="login-password">
+          <div className={cardRowInput}>
+            <label className={rowLabel} htmlFor="login-password">
               Password
             </label>
-            <span className="auth-input-wrap">
+            <span className={authInputWrap}>
               <input
                 id="login-password"
                 type={showPassword ? "text" : "password"}
-                className="auth-input"
+                className={authInput}
                 placeholder="Your password"
                 autoComplete="current-password"
                 value={password}
@@ -67,7 +81,7 @@ function LogIn() {
               />
               <button
                 type="button"
-                className="profile-password-toggle"
+                className={iconButton}
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
@@ -77,17 +91,17 @@ function LogIn() {
           </div>
         </div>
 
-        {error && <p className="auth-error" role="alert">{error}</p>}
+        {error && <p className={authError} role="alert">{error}</p>}
 
-        <div className="profile-actions">
-          <button type="submit" className="profile-button auth-submit" disabled={submitting}>
+        <div className={buttonStack}>
+          <button type="submit" className={buttonPrimary} disabled={submitting}>
             {submitting ? "Logging in…" : "Log in"}
           </button>
         </div>
       </form>
 
-      <p className="auth-switch">
-        New to QuagBot? <a href="/signup">Sign up</a>
+      <p className={authSwitch}>
+        New to QuagBot? <a href="/signup" className={authLink}>Sign up</a>
       </p>
     </PageWrapper>
   );
