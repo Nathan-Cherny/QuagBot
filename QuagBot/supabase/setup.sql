@@ -3,18 +3,40 @@
 -- This adds ONLY app data, keyed to auth.users.id (uuid).
 
 create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  display_name text,
-  role text not null default 'student' check (role in ('student', 'teacher')),
+  id uuid PRIMARY KEY references auth.users(id) on delete cascade,
+  display_name text NOT NULL,
+  role text NOT NULL DEFAULT 'student' check (role in ('student', 'teacher')),
   created_at timestamptz not null default now()
 );
 
 create table public.classrooms (
-  id bigint generated always as identity primary key,
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text not null,
   join_code text not null unique,
-  owner_id uuid not null references public.profiles(id) on delete cascade,
+  owner_id uuid not null REFERENCES public.profiles(id) on delete cascade,
   created_at timestamptz not null default now()
+);
+
+CREATE TABLE public.chat_sessions (
+  session_id uuid PRIMARY KEY default gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE cascade,
+  class_id uuid REFERENCES public.classrooms(id) ON DELETE cascade,
+  title text NOT NULL
+);
+
+CREATE TABLE public.chat_messages (
+  message_id uuid PRIMARY KEY default gen_random_uuid(),
+  session_id uuid NOT NULL references public.chat_sessions(session_id) ON DELETE cascade,
+  sender_role text NOT NULL DEFAULT 'student' check (sender_role in ('user', 'assistant')),
+  message_content text NOT NULL, 
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.classroom_members (
+  class_id uuid REFERENCES public.classrooms(id),
+  user_id uuid REFERENCES public.profiles(id),
+
+  PRIMARY KEY (class_id, user_id)
 );
 
 -- Auto-create a profile row whenever someone signs up.
