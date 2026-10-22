@@ -4,6 +4,24 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, PlugZap } from "lucide-react";
 import PageWrapper from "../components/Layout/PageWrapper";
+import {
+  authError,
+  authInput,
+  authInputWrap,
+  authLink,
+  authNotice,
+  authSwitch,
+  buttonPrimary,
+  buttonStack,
+  card,
+  cardRow,
+  cardRowInput,
+  iconButton,
+  pageTitle,
+  required,
+  rowLabel,
+  rowValueConnect,
+} from "../components/ui/styles";
 import { createClient } from "@/lib/supabase/client";
 
 function SignUp() {
@@ -47,16 +65,16 @@ function SignUp() {
   }
 
   return (
-    <PageWrapper className="basic-page">
-      <h1 className="page-title">Create your account</h1>
+    <PageWrapper basic>
+      <h1 className={pageTitle}>Create your account</h1>
 
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <div className="profile-card">
-          <label className="profile-field auth-field">
-            <span className="profile-field-label required">Name</span>
+      <form className="flex flex-col" onSubmit={handleSubmit}>
+        <div className={card}>
+          <label className={cardRowInput}>
+            <span className={`${rowLabel} ${required}`}>Name</span>
             <input
               type="text"
-              className="auth-input"
+              className={authInput}
               placeholder="Your name"
               autoComplete="name"
               value={name}
@@ -65,11 +83,11 @@ function SignUp() {
             />
           </label>
 
-          <label className="profile-field auth-field">
-            <span className="profile-field-label required">Email</span>
+          <label className={cardRowInput}>
+            <span className={`${rowLabel} ${required}`}>Email</span>
             <input
               type="email"
-              className="auth-input"
+              className={authInput}
               placeholder="you@example.com"
               autoComplete="email"
               value={email}
@@ -78,16 +96,16 @@ function SignUp() {
             />
           </label>
 
-          <div className="profile-field auth-field">
-            <label className="profile-field-label required" htmlFor="signup-password">
+          <div className={cardRowInput}>
+            <label className={`${rowLabel} ${required}`} htmlFor="signup-password">
               Password
             </label>
-            <span className="auth-input-wrap">
+            <span className={authInputWrap}>
               <input
                 id="signup-password"
                 minLength={8}
                 type={showPassword ? "text" : "password"}
-                className="auth-input"
+                className={authInput}
                 placeholder="Create a password"
                 autoComplete="new-password"
                 value={password}
@@ -96,7 +114,7 @@ function SignUp() {
               />
               <button
                 type="button"
-                className="profile-password-toggle"
+                className={iconButton}
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
@@ -106,14 +124,14 @@ function SignUp() {
           </div>
 
           {/* Same "Connected teacher" row as the profile page */}
-          <div className="profile-field">
-            <span className="profile-field-label">Teacher to connect to</span>
-            <span className="profile-field-value profile-field-value--connect">
+          <div className={cardRow}>
+            <span className={rowLabel}>Teacher to connect to</span>
+            <span className={rowValueConnect}>
               {connectedTeacher ?? "Not connected"}
               {!connectedTeacher && (
                 <button
                   type="button"
-                  className="profile-password-toggle"
+                  className={iconButton}
                   title="Connect to your teacher"
                   aria-label={"Connect"}
                 >
@@ -124,18 +142,18 @@ function SignUp() {
           </div>
         </div>
 
-        {error && <p className="auth-error" role="alert">{error}</p>}
-        {notice && <p className="auth-notice">{notice}</p>}
+        {error && <p className={authError} role="alert">{error}</p>}
+        {notice && <p className={authNotice}>{notice}</p>}
 
-        <div className="profile-actions">
-          <button type="submit" className="profile-button auth-submit" disabled={submitting}>
+        <div className={buttonStack}>
+          <button type="submit" className={buttonPrimary} disabled={submitting}>
             {submitting ? "Creating account…" : "Sign up"}
           </button>
         </div>
       </form>
 
-      <p className="auth-switch">
-        Already have an account? <a href="/login">Log in</a>
+      <p className={authSwitch}>
+        Already have an account? <a href="/login" className={authLink}>Log in</a>
       </p>
     </PageWrapper>
   );

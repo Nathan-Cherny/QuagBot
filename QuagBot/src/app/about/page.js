@@ -1,11 +1,12 @@
 "use client";
 
 import PageWrapper from "../components/Layout/PageWrapper";
+import { pageTitle } from "../components/ui/styles";
 
 function About() {
   return (
-    <PageWrapper className={"basic-page"}>
-        <h1 className="page-title">About QuagBot</h1>
+    <PageWrapper basic>
+        <h1 className={pageTitle}>About QuagBot</h1>
         <p className="text-center">quagbot is the best</p>
     </PageWrapper>
   );

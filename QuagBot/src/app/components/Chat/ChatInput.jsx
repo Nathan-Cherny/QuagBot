@@ -18,9 +18,9 @@ function ChatInput({ onSend, disabled }) {
   }
 
   return (
-    <div className="chat-input">
+    <div className="flex items-end gap-space-2 border-t border-border bg-surface p-space-4">
       <textarea
-        className="chat-input-textarea"
+        className="max-h-[160px] flex-1 resize-none rounded-card border border-border bg-bg px-space-3 py-space-2 text-[0.92rem] leading-[1.4] text-text focus:outline-2 focus:outline-offset-1 focus:outline-accent"
         placeholder="Send a message..."
         rows={1}
         value={value}
@@ -29,7 +29,7 @@ function ChatInput({ onSend, disabled }) {
       />
       <button
         type="button"
-        className="chat-input-send"
+        className="cursor-pointer rounded-card border-none bg-accent px-space-4 py-space-2 text-[0.9rem] font-medium text-accent-contrast enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={submit}
         disabled={disabled || !value.trim()}
       >

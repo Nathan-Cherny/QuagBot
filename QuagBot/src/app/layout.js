@@ -22,7 +22,8 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* On the chat page, pin the body to the viewport height so only the message list scrolls. */}
+      <body className="flex min-h-full flex-col bg-bg font-sans text-text has-[[data-chat-window]]:h-full">{children}</body>
     </html>
   );
 }
