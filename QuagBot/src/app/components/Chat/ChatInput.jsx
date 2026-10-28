@@ -1,7 +1,29 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 function ChatInput({ onSend, disabled }) {
   const [value, setValue] = useState('');
+  const textareaRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    function resize() {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight + 2}px`;
+    }
+
+    resize();
+    const observer = new ResizeObserver(() => {
+      if (textarea.clientWidth !== lastWidth) {
+        lastWidth = textarea.clientWidth;
+        resize();
+      }
+    });
+    let lastWidth = textarea.clientWidth;
+    observer.observe(textarea);
+    return () => observer.disconnect();
+  }, [value]);
 
   function submit() {
     const trimmed = value.trim();
@@ -11,16 +33,19 @@ function ChatInput({ onSend, disabled }) {
   }
 
   function handleKeyDown(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       submit();
     }
   }
 
   return (
-    <div className="flex items-end gap-space-2 border-t border-border bg-surface p-space-4">
+    <div className="border-t border-border bg-surface p-space-4">
+      <div className="flex items-end gap-space-2">
       <textarea
-        className="max-h-[160px] flex-1 resize-none rounded-card border border-border bg-bg px-space-3 py-space-2 text-[0.92rem] leading-[1.4] text-text focus:outline-2 focus:outline-offset-1 focus:outline-accent"
+        ref={textareaRef}
+        aria-label="Chat message"
+        className="max-h-[160px] min-w-0 flex-1 resize-none overflow-y-auto rounded-card border border-border bg-bg px-space-3 py-space-2 text-[0.92rem] leading-[1.4] text-text focus:outline-2 focus:outline-offset-1 focus:outline-accent"
         placeholder="Send a message..."
         rows={1}
         value={value}
@@ -35,6 +60,7 @@ function ChatInput({ onSend, disabled }) {
       >
         Send
       </button>
+      </div>
     </div>
   );
 }

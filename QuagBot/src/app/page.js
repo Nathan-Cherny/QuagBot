@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import ChatWindow from './components/Chat/ChatWindow';
 import Sidebar from './components/Layout/Sidebar';
 import ChatHistory from "./components/Chat/ChatHistory"
@@ -20,9 +20,11 @@ function Home() {
     const [font, setFont] = useState('Arial, sans-serif');
     const [fontColor, setFontColor] = useState('#000000');
     const [activeChat, setActiveChat] = useState(null);
+    const [chatVersion, setChatVersion] = useState(0);
     const pendingReply = useRef(null);
 
     function sendTextToBot(text) {
+        if (pendingReply.current) return;
         const userMessage = { id: crypto.randomUUID(), role: 'user', text };
         setMessages((prev) => [...prev, userMessage]);
         setIsLoading(true);
@@ -40,6 +42,17 @@ function Home() {
         }, 700);
     }
 
+    function startNewChat() {
+        if (pendingReply.current) {
+            clearTimeout(pendingReply.current);
+            pendingReply.current = null;
+        }
+        setIsLoading(false);
+        setMessages([INITIAL_MESSAGE]);
+        setActiveChat(null);
+        setChatVersion((version) => version + 1);
+    }
+
     // Replace the displayed conversation with a previous chat's messages.
     function loadChat(chat) {
         // Drop any in-flight reply so it doesn't get appended to the newly loaded chat.
@@ -55,10 +68,12 @@ function Home() {
     return (
         <PageWrapper>
             <Sidebar title="" side="left">
-                <ChatHistory onSelectChat={loadChat} activeChat={activeChat} />
+                <ChatHistory onSelectChat={loadChat} activeChat={activeChat} onNewChat={startNewChat} />
             </Sidebar>
 
             <ChatWindow
+                key={chatVersion}
+                onNewChat={startNewChat}
                 messages={messages}
                 isLoading={isLoading}
                 onSend={sendTextToBot}

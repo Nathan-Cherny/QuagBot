@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import ChatPrevious from "./ChatPrevious";
 import { sidebarTitle } from "../ui/styles";
+import NewChatButton from './NewChatButton';
 
-function ChatHistory({ onSelectChat, activeChat }) {
+function ChatHistory({ onSelectChat, activeChat, onNewChat }) {
   const [chats, setChats] = useState([
     {
       title: "Example Chat", content: [
@@ -65,6 +66,9 @@ function ChatHistory({ onSelectChat, activeChat }) {
 
   return (
     <div className="max-w-50 overflow-x-hidden text-nowrap">
+      <div className="mb-space-4 flex justify-center border-b border-border pb-space-4">
+        <NewChatButton onClick={onNewChat} />
+      </div>
       <h2 className={sidebarTitle}>Chat History</h2>
       <div className="flex flex-col gap-1">
         {chats.map((chat, i) => <ChatPrevious key={i} chat={chat} isActive={chat === activeChat} onSelect={onSelectChat} />)}
