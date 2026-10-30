@@ -7,8 +7,6 @@ import LogOutButton from "../components/Layout/Elements/LogOutButton";
 
 import PageWrapper from "../components/Layout/PageWrapper";
 import {
-  button,
-  buttonDanger,
   buttonStack,
   card,
   cardRow,
@@ -80,30 +78,6 @@ function Profile() {
         </div>
 
         <div className={buttonStack}>
-          <button
-            type="button"
-            className={button}
-            onClick={() => console.log("test")}
-          >
-            Placeholder 1
-          </button>
-
-          <button
-            type="button"
-            className={button}
-            onClick={() => console.log("test")}
-          >
-            Placeholder 2
-          </button>
-
-          <button
-            type="button"
-            className={button}
-            onClick={() => console.log("test")}
-          >
-            Place holder 3
-          </button>
-
           <LogOutButton handleLogout={handleLogout}/>
 
         </div>

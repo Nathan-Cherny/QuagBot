@@ -1,16 +1,18 @@
 import UserAvatar from '../User/UserAvatar';
-import { Copy } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 import { chatAvatar, chatMessageRow } from '../ui/styles';
+import WelcomeText from './WelcomeText';
 
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
-const BUBBLE = 'rounded-card px-space-4 py-space-3 text-[0.92rem] leading-[1.45] whitespace-pre-wrap';
-const USER_BUBBLE = `${BUBBLE} max-w-[60%] rounded-br-[2px] bg-user-bubble text-accent-contrast`;
+const BUBBLE = 'rounded-card px-space-4 py-space-3 text-[0.92rem] leading-[1.45] whitespace-pre-wrap [overflow-wrap:anywhere]';
+const USER_BUBBLE = `${BUBBLE} min-w-0 max-w-[60%] max-[900px]:max-w-[85%] rounded-br-[2px] bg-user-bubble text-accent-contrast`;
 const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text`;
-const BOT_CONTENT = 'min-w-0 max-w-[60%]';
+const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 
-function ChatMessage({ role, text, responseStyle }) {
+function ChatMessage({ role, text, responseStyle, animateWelcome = false }) {
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
 
@@ -32,7 +34,7 @@ function ChatMessage({ role, text, responseStyle }) {
 
       <div className={BOT_CONTENT}>
         <div className={BOT_BUBBLE} style={responseStyle}>
-          {text}
+          {animateWelcome ? <WelcomeText text={text} /> : text}
         </div>
         {<Buttons text={text} />}
       </div>
@@ -51,11 +53,29 @@ function Buttons({ text }) {
 }
 
 function CopyButton({ text }) {
-  function copyText(text) { navigator.clipboard.writeText(text) }
+  const [status, setStatus] = useState('');
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  async function copyText() {
+    clearTimeout(timer.current);
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus('Copied');
+    } catch {
+      setStatus('Could not copy. Select the text to copy it.');
+    }
+    timer.current = setTimeout(() => setStatus(''), 2500);
+  }
 
   return (
-    <Copy onClick={() => copyText(text)} className='cursor-pointer hover:scale-110' size={16} />
-  )
+    <div className="flex items-center gap-space-2 text-xs text-text-muted">
+      <button type="button" onClick={copyText} aria-label="Copy response" title="Copy response" className="cursor-pointer rounded p-space-1 hover:bg-navbar-bg focus-visible:outline-2 focus-visible:outline-important-border">
+        {status === 'Copied' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+      </button>
+      <span role="status">{status}</span>
+    </div>
+  );
 }
 
 export default ChatMessage;
