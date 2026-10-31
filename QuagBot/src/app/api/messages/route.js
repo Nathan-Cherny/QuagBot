@@ -8,7 +8,7 @@ const DEFAULT_PROMPT = `You are QuagBot, an AI tool built for students of varyin
 
 ${HE_HAS_PERSONALITY}
 
-The following is the user's prompt, alongside any more potential instructions for you to follow. Answer their question in no more than ${MAX_CHARACTERS} characters.
+The following is the user's prompt, alongside any more potential instructions for you to follow. Answer their question in no more than ${MAX_CHARACTERS} characters. Respond in Markdown formatting.
 
 `
 
