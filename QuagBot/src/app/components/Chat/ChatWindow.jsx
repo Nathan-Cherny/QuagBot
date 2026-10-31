@@ -3,11 +3,23 @@ import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import NewChatButton from './NewChatButton';
 import { chatAvatar, chatMessageRow } from '../ui/styles';
+import { createConversation } from '@/lib/api/conversations';
 
 const TYPING_DOT = 'size-[6px] animate-typing-bounce rounded-full bg-text-muted';
 
 function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle }) {
   const scrollRef = useRef(null);
+  const conversationRequested = useRef(false);
+
+  // using a ref here so the dumb next dev environment doesn't create 2 conversations lol
+  useEffect(() => {
+    if (conversationRequested.current) return;
+    conversationRequested.current = true;
+
+    // createConversation('Test Chat')
+    //   .then((conversation) => console.log('Conversation created:', conversation))
+    //   .catch((error) => console.error(error));
+  }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
