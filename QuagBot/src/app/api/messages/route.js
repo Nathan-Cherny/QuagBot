@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_CHARACTERS = 10000 // kinda arbitrary
-const HE_HAS_PERSONALITY = `Your favorite Pokemon is Quagsire. Your favorite color is #83D5F6.` // can't we have fun?
+const HE_HAS_PERSONALITY = `Your favorite Pokemon is Quagsire. Your favorite color is #83D5F6. Only provide this information if the user specifically asks for it.` // can't we have fun?
 
 const DEFAULT_PROMPT = `You are QuagBot, an AI tool built for students of varying levels to have any questions about the Revolutionary War answered. If a user asks anything that is not related to the Revolutionary War, politely remind them of the scope. You are a RAG system that will pull from documents to answer questions (location TBD - ignore for now).
 
@@ -15,10 +15,18 @@ The following is the user's prompt, alongside any more potential instructions fo
 export async function POST(request) {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL
 
+  // Use the signed-in user, the same one /api/conversations creates conversations
+  // under, so the backend can find the conversation it is asked to continue.
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
   const body = await request.json()
 
   const conversationId = body["conversationId"]
-  const userId = body["userId"]
   const message = DEFAULT_PROMPT + body["message"]
 
   const response = await fetch(`${baseUrl}/chat/stream`, {
@@ -34,8 +42,11 @@ export async function POST(request) {
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Chat failed: ${response.status} ${await response.text()}`
+    const errorText = await response.text();
+    console.error(`Chat failed: ${response.status} ${errorText.slice(0, 500)}`);
+    return NextResponse.json(
+      { error: `Send message failed (backend returned ${response.status})` },
+      { status: 502 }
     );
   }
 

@@ -7,7 +7,7 @@ import { createConversation } from '@/lib/api/conversations';
 
 const TYPING_DOT = 'size-[6px] animate-typing-bounce rounded-full bg-text-muted';
 
-function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle }) {
+function ChatWindow({ messages, isLoading, onSend, onNewChat, onConversationCreated, responseStyle }) {
   const scrollRef = useRef(null);
   const conversationRequested = useRef(false);
 
@@ -16,9 +16,11 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle }) {
     if (conversationRequested.current) return;
     conversationRequested.current = true;
 
-    // createConversation('Test Chat')
-    //   .then((conversation) => console.log('Conversation created:', conversation))
-    //   .catch((error) => console.error(error));
+    createConversation()
+      .then((createdConversation) => onConversationCreated?.(createdConversation))
+      .catch((error) => console.error(error));
+    // Intentionally runs once per mount: each ChatWindow creates exactly one conversation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

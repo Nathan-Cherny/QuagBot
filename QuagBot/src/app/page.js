@@ -22,7 +22,20 @@ function Home() {
   const [fontColor, setFontColor] = useState("#000000");
   const [activeChat, setActiveChat] = useState(null);
   const [chatVersion, setChatVersion] = useState(0);
+  const [created, setCreated] = useState(null);
   const pendingReply = useRef(null);
+
+  // The conversation ChatWindow created for the current chat. Tagged with the
+  // chatVersion it was created for, so a slow response from a previous
+  // ChatWindow can never be used by a newer chat.
+  const createdConversation = created?.version === chatVersion ? created.conversation : null;
+
+  // A chat picked from ChatHistory wins; otherwise use the freshly created conversation.
+  const conversationId = activeChat?.id ?? createdConversation?.id ?? null;
+
+  function handleConversationCreated(conversation, version) {
+    setCreated({ version, conversation });
+  }
 
   // Drop any in-flight reply so it can't land in a different chat.
   function cancelPendingReply() {
@@ -32,6 +45,21 @@ function Home() {
 
   async function sendTextToBot(text) {
     if (pendingReply.current) return;
+
+    if (!conversationId) {
+      // The conversation hasn't been created yet (or creation failed).
+      console.error("Cannot send message: no conversationId available yet.");
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "user", text },
+        {
+          id: crypto.randomUUID(),
+          role: "quagbot",
+          text: "I'm still setting up this conversation. Please try again in a moment.",
+        },
+      ]);
+      return;
+    }
 
     const token = {};
     pendingReply.current = token;
@@ -44,12 +72,8 @@ function Home() {
 
     let botText;
     try {
-      const result = await sendMessage(
-        "a919d895-16b5-44ac-bdc5-3b0772c4510a",
-        "fa9c5cbc-2608-451d-82c9-70fa452fe63a",
-        text,
-      );
-      
+      const result = await sendMessage(conversationId, text);
+
       if (pendingReply.current !== token) return; // chat was reset while waiting
       botText = result.reply;
     } catch (error) {
@@ -95,6 +119,7 @@ function Home() {
         messages={messages}
         isLoading={isLoading}
         onSend={sendTextToBot}
+        onConversationCreated={(conversation) => handleConversationCreated(conversation, chatVersion)}
         responseStyle={{
           fontSize: textSize,
           fontFamily: font,
