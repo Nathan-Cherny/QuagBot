@@ -88,6 +88,11 @@ function Home() {
     if (isPDF) {
       let parsedJson = parseMarkdownJson(botText);
       botText = parsedJson
+
+      if(!botText.isValid){
+        botText = "Sorry, I cannot generate a practice exam at this time. The conversation does not have enough content for me to create an exam out of. \n\nTry again after asking me some more questions!"
+        isPDF = false
+      }
     }
     
     setMessages((prev) => [

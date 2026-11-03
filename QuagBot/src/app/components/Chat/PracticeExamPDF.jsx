@@ -59,7 +59,7 @@ export function GeneratePracticeExam({ onSend, messages }) {
         let messageTotalText = ""
         messages.forEach(message => messageTotalText += `${message.text}\n\n`)
         
-        const pdfprompt = "generate a short practice exam based on the content of the following conversation. return as a JSON format: title : String, text : String"
+        const pdfprompt = "generate a short practice exam based on the content of the following conversation. return as a JSON format: title : String, text : String, isValid : Boolean. if you do not have sufficient information, leave all fields blank except for isValid, which should be false. "
 
         onSend(`${pdfprompt}\n${messageTotalText}`, true, "QuagBot, please create a practice exam for me!")
       }}>

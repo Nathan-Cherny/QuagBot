@@ -39,6 +39,7 @@ function ChatMessage({ role, text, responseStyle, isPDF }) {
           </div>
 
           {isPDF && <PDFDownloadLink
+            className='hover:scale-105 border p-1 bg-white/20 shadow-xl'
             document={
               <PDFDocument title={text.title} textContent={text.text} />
             }
@@ -67,7 +68,10 @@ function Buttons({ text }) {
 }
 
 function CopyButton({ text }) {
-  function copyText(text) { navigator.clipboard.writeText(text) }
+  function copyText(text) {
+    if(typeof text == "object") text = JSON.stringify(text)
+    navigator.clipboard.writeText(text)
+  }
 
   return (
     <Copy onClick={() => copyText(text)} className='cursor-pointer hover:scale-110' size={16} />
