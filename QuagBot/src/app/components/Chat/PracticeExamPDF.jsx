@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { PILL_BUTTON } from './ChatSettings';
+import { PILL_BUTTON, FIELD, SELECT, INPUT } from './ChatSettings';
 import { Lightbulb } from 'lucide-react';
 import PDFMarkdown from './PDFMarkdown';
 
@@ -54,16 +54,60 @@ export function parseMarkdownJson(markdownString) {
 }
 
 export function GeneratePracticeExam({ onSend, messages }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const [difficulty, setDifficulty] = useState(2)
+  const [questions, setQuestions] = useState(5)
+  const [questionTypes, setQuestionTypes] = useState(["multiple choice"])
+
   return (
     <div className='w-full'>
-      <button type="button" className={PILL_BUTTON} onClick={() => {
-        let messageTotalText = ""
-        messages.forEach(message => messageTotalText += `${message.text}\n\n`)
-        
-        const pdfprompt = "generate a short practice exam based on the content of the following conversation. return as a JSON format: title : String, text : String, isValid : Boolean. if you do not have sufficient information, leave all fields blank except for isValid, which should be false. "
+      {
+        isOpen && (
+          <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/30">
+            <div className="max-h-[90vh] w-87.5 max-w-[90%] overflow-y-auto rounded-xl bg-surface p-space-5 flex flex-col gap-5">
+              <h2 className="mb-space-2 text-[24px] leading-[118%] font-medium tracking-[-0.24px] text-black max-[1024px]:text-[20px]">Create a Practice Exam</h2>
 
-        onSend(`${pdfprompt}\n${messageTotalText}`, true, "QuagBot, please create a practice exam for me!")
-      }}>
+              <label className={FIELD}>
+                Question Types
+                <select defaultChecked={questionTypes} className={SELECT} onChange={(event) => setQuestionTypes(Array.from(event.target.selectedOptions).map(option => option.value))} multiple>
+                  <option value="multiple choice">Multiple Choice</option>
+                  <option value="short answer">Short Answer</option>
+                  <option value="true/false">True/False</option>
+                </select>
+              </label>
+
+              <label className={FIELD}>
+                Difficulty of Quiz
+                <input defaultValue={difficulty} className={INPUT} onChange={(event) => setDifficulty(event.target.value)} type='range' min={1} max={5} />
+              </label>
+
+              <label className={FIELD}>
+                # Questions
+                <input defaultValue={questions} className={INPUT} onChange={(event) => setDifficulty(event.target.value)} type='number' min={1} max={20} />
+              </label>
+
+              <button type="button" className={`${PILL_BUTTON} bg-blue-200!`} onClick={() => {
+                console.log(`
+                ${difficulty} ${questions} ${questionTypes}
+                  `)
+
+                let messageTotalText = ""
+                messages.forEach(message => messageTotalText += `${message.text}\n\n`)
+
+                const settingsprompt = `The quiz should be, on a scale from 1-5, a ${difficulty} in difficulty. It should have ${questions} questions. Accepted types of questions are: ${questionTypes.join(",")}.`
+                const basicPrompt = `Generate a short practice exam based on the content of the following conversation. ${settingsprompt} Return as a JSON format - title : String, text : String, isValid : Boolean. If you do not have sufficient information, leave all fields blank except for isValid, which should be false. The questions should not be about the conversation itself; more about the topics discussed in the conversation. Make sure to include an answer key at the end.`
+                const finalprompt = `${basicPrompt}\n${messageTotalText}`
+
+                onSend(finalprompt, true, "QuagBot, please create a practice exam for me!")
+                setIsOpen(false)
+              }}>Create</button>
+              <button type="button" className={PILL_BUTTON} onClick={() => setIsOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        )
+      }
+      <button type="button" className={PILL_BUTTON} onClick={() => { setIsOpen(true) }}>
         <h1 className='flex flex-row items-center gap-1'><Lightbulb />Generate Practice Exam</h1>
       </button>
     </div >
