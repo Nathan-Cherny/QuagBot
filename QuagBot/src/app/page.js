@@ -7,8 +7,9 @@ import ChatHistory from "./components/Chat/ChatHistory"
 import MobileHistory from './components/Chat/MobileHistory';
 import ChatSettings from "./components/Chat/ChatSettings"
 import PageWrapper from './components/Layout/PageWrapper';
-import { requestReply } from '../lib/chat';
+import { createConversation, sendMessage, listConversations, listMessages } from '../lib/api/chat';
 import { createClient } from '../lib/supabase/client';
+import { mergeConversationCatalog, restoreMessages } from '../lib/historySync.mjs';
 import { DEFAULT_PREFERENCES, parsePreferences } from '../lib/chatPreferences';
 
 const INITIAL_MESSAGE = {
@@ -30,7 +31,16 @@ function Home() {
     const [historyOpen, setHistoryOpen] = useState(false);
     const [chatVersion, setChatVersion] = useState(0);
     const pendingReply = useRef(null);
+    const messageRequest = useRef(null);
+    const accountKey = useRef(null);
+    const [historyLoading, setHistoryLoading] = useState(true);
+    const [historyError, setHistoryError] = useState(null);
+    const [historyRefresh, setHistoryRefresh] = useState(0);
+    const [isRestoring, setIsRestoring] = useState(false);
+    const [loadError, setLoadError] = useState(null);
+    const [remotePending, setRemotePending] = useState(false);
     const [failedQuestion, setFailedQuestion] = useState(null);
+    const [requestError, setRequestError] = useState(null);
 
     useEffect(() => {
         let disposed = false;
@@ -39,10 +49,18 @@ function Home() {
             const identity = user?.id ?? 'guest';
             if (disposed || restoredIdentity === identity) return;
             restoredIdentity = identity;
+            messageRequest.current?.abort();
+            messageRequest.current = null;
+            setIsRestoring(false);
+            setLoadError(null);
+            setRemotePending(false);
+            setHistoryLoading(true);
+            setHistoryError(null);
             pendingReply.current?.abort();
             pendingReply.current = null;
             setIsLoading(false);
             setFailedQuestion(null);
+            setRequestError(null);
             setActiveChat(null);
             setMessages([INITIAL_MESSAGE]);
             setChatVersion((version) => version + 1);
@@ -65,6 +83,7 @@ function Home() {
             } catch {
                 setStorageError('Saved chats could not be loaded. New messages will remain available during this visit.');
             }
+            accountKey.current = key;
             setChats(saved);
             setStorageKey(key);
         }
@@ -74,15 +93,40 @@ function Home() {
             const { data } = client.auth.onAuthStateChange((_event, session) => restore(session?.user));
             unsubscribe = () => data.subscription.unsubscribe();
         } catch {
-            // Allow local demos when authentication is not configured.
+            // Keep cached history accessible; AI routes still require authentication.
             Promise.resolve().then(() => restore(null));
         }
         return () => {
             disposed = true;
             unsubscribe();
             pendingReply.current?.abort();
+            messageRequest.current?.abort();
         };
     }, []);
+
+    useEffect(() => {
+        if (!storageKey) return;
+        const controller = new AbortController();
+        listConversations({ signal: controller.signal })
+            .then((records) => {
+                if (controller.signal.aborted || accountKey.current !== storageKey) return;
+                setChats((previous) => mergeConversationCatalog(previous, records));
+                setHistoryError(null);
+            })
+            .catch((error) => {
+                if (!controller.signal.aborted && accountKey.current === storageKey) setHistoryError(error.message);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted && accountKey.current === storageKey) setHistoryLoading(false);
+            });
+        return () => controller.abort();
+    }, [storageKey, historyRefresh]);
+
+    function refreshHistory() {
+        setHistoryLoading(true);
+        setHistoryError(null);
+        setHistoryRefresh((version) => version + 1);
+    }
 
     useEffect(() => {
         if (!storageKey) return;
@@ -103,18 +147,19 @@ function Home() {
         }
     }, [storageKey, textSize, font, fontColor]);
 
-    function saveConversation(id, content) {
+    function saveConversation(id, content, backendConversationId) {
         const firstQuestion = content.find((message) => message.role === 'user')?.text ?? 'New chat';
         const title = firstQuestion.length > 45 ? `${firstQuestion.slice(0, 45)}…` : firstQuestion;
         setChats((previous) => {
             const existing = previous.find((item) => item.id === id);
-            const chat = { ...existing, id, title: existing?.renamed ? existing.title : title, content, updatedAt: Date.now() };
+            const chat = { ...existing, backendConversationId: backendConversationId ?? existing?.backendConversationId ?? null, id, title: existing?.renamed ? existing.title : title, content, updatedAt: Date.now() };
             return [chat, ...previous.filter((item) => item.id !== id)];
         });
     }
 
     async function sendTextToBot(text, isRetry = false) {
         if (!storageKey || pendingReply.current || typeof text !== 'string' || !text.trim()) return;
+        if (archived || isRestoring || loadError || remotePending) return;
         text = text.trim();
         const id = activeChat ?? crypto.randomUUID();
         const content = isRetry ? messages : [...messages, { id: crypto.randomUUID(), role: 'user', text }];
@@ -124,18 +169,29 @@ function Home() {
         const controller = new AbortController();
         pendingReply.current = controller;
         setFailedQuestion(null);
+        setRequestError(null);
         setIsLoading(true);
         try {
-            const reply = await requestReply(content, { signal: controller.signal });
+            let backendId = chats.find((chat) => chat.id === id)?.backendConversationId;
+            if (!backendId) {
+                const conversation = await createConversation(text.slice(0, 80), { signal: controller.signal });
+                if (controller.signal.aborted) return;
+                backendId = conversation.id;
+                saveConversation(id, content, backendId);
+            }
+            const { reply } = await sendMessage(backendId, text, { signal: controller.signal });
             if (controller.signal.aborted) return;
             if (typeof reply !== 'string' || !reply.trim()) {
                 throw new Error('Empty response');
             }
             const completed = [...content, { id: crypto.randomUUID(), role: 'quagbot', text: reply }];
             setMessages(completed);
-            saveConversation(id, completed);
-        } catch {
-            if (!controller.signal.aborted) setFailedQuestion(text);
+            saveConversation(id, completed, backendId);
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                setFailedQuestion(text);
+                setRequestError(error.message || 'The AI service could not respond. Please try again.');
+            }
         } finally {
             if (pendingReply.current === controller) {
                 pendingReply.current = null;
@@ -145,37 +201,71 @@ function Home() {
     }
 
     function startNewChat() {
+        messageRequest.current?.abort();
+        messageRequest.current = null;
+        setIsRestoring(false);
+        setLoadError(null);
+        setRemotePending(false);
         if (pendingReply.current) {
             pendingReply.current.abort();
             pendingReply.current = null;
         }
         setIsLoading(false);
         setFailedQuestion(null);
+        setRequestError(null);
         setMessages([INITIAL_MESSAGE]);
         setActiveChat(null);
         setHistoryOpen(false);
         setChatVersion((version) => version + 1);
     }
 
-    // Replace the displayed conversation with a previous chat's messages.
-    function loadChat(chat) {
-        // Drop any in-flight reply so it doesn't get appended to the newly loaded chat.
-        if (pendingReply.current) {
-            pendingReply.current.abort();
-            pendingReply.current = null;
-        }
+    async function loadChat(chat) {
+        pendingReply.current?.abort();
+        pendingReply.current = null;
+        messageRequest.current?.abort();
+        messageRequest.current = null;
         setIsLoading(false);
         setFailedQuestion(null);
-        const lastMessage = chat.content.at(-1);
-        setFailedQuestion(lastMessage?.role === 'user' ? lastMessage.text : null);
-        setMessages([...chat.content]);
+        setRequestError(null);
+        setLoadError(null);
+        setRemotePending(false);
+        setIsRestoring(false);
+        setMessages(chat.content.length ? [...chat.content] : [INITIAL_MESSAGE]);
         setActiveChat(chat.id);
         setChatVersion((version) => version + 1);
         setHistoryOpen(false);
+        if (!chat.backendConversationId) {
+            const last = chat.content.at(-1);
+            setFailedQuestion(last?.role === 'user' ? last.text : null);
+            return;
+        }
+        const controller = new AbortController();
+        messageRequest.current = controller;
+        setIsRestoring(true);
+        try {
+            const records = await listMessages(chat.backendConversationId, { signal: controller.signal });
+            if (controller.signal.aborted) return;
+            const restored = restoreMessages(records, chat.content);
+            setMessages(restored.messages.length ? restored.messages : [INITIAL_MESSAGE]);
+            setRemotePending(restored.pending);
+            const last = restored.messages.at(-1);
+            setFailedQuestion(!restored.pending && last?.role === 'user' ? last.text : null);
+            // Reading history must not move it into the Today group.
+            setChats((previous) => previous.map((item) => item.id === chat.id ? { ...item, content: restored.messages } : item));
+        } catch (error) {
+            if (!controller.signal.aborted) setLoadError(`Could not refresh this conversation. ${error.message}`);
+        } finally {
+            if (messageRequest.current === controller) {
+                messageRequest.current = null;
+                setIsRestoring(false);
+            }
+        }
     }
 
     function deleteChat(id) {
-        if (!window.confirm('Delete this conversation? This cannot be undone.')) return;
+        const chat = chats.find((item) => item.id === id);
+        if (!chat || chat.backendConversationId) return;
+        if (!window.confirm('Delete this local conversation? This cannot be undone.')) return;
         if (id === activeChat) startNewChat();
         setChats((previous) => previous.filter((chat) => chat.id !== id));
     }
@@ -186,7 +276,10 @@ function Home() {
         setChats((previous) => previous.map((chat) => chat.id === id ? { ...chat, title: trimmed, renamed: true } : chat));
     }
 
-    const history = <ChatHistory chats={chats} onSelectChat={loadChat} activeChat={activeChat} onNewChat={startNewChat} onDeleteChat={deleteChat} onRenameChat={renameChat} />;
+    const selectedChat = chats.find((chat) => chat.id === activeChat);
+    const archived = Boolean(selectedChat && !Object.hasOwn(selectedChat, 'backendConversationId'));
+
+    const history = <ChatHistory chats={chats} loading={historyLoading} error={historyError} onRefresh={refreshHistory} onSelectChat={loadChat} activeChat={activeChat} onNewChat={startNewChat} onDeleteChat={deleteChat} onRenameChat={renameChat} />;
 
     return (
         <PageWrapper>
@@ -203,11 +296,16 @@ function Home() {
                 onOpenHistory={() => setHistoryOpen(true)}
                 storageError={storageError}
                 ready={Boolean(storageKey)}
+                archived={archived}
+                isRestoring={isRestoring}
+                sendDisabled={Boolean(loadError) || remotePending}
+                remotePending={remotePending}
+                onRefreshConversation={() => selectedChat && loadChat(selectedChat)}
                 messages={messages}
                 title={chats.find((chat) => chat.id === activeChat)?.title ?? 'New chat'}
                 isLoading={isLoading}
-                error={failedQuestion ? "This question has no reply yet. Your question is saved in the conversation. Try again to get a response." : null}
-                onRetry={() => sendTextToBot(failedQuestion, true)}
+                error={loadError ?? (!archived && failedQuestion ? (requestError ?? "This question has no reply yet. Try again to request an AI response.") : null)}
+                onRetry={() => loadError && selectedChat ? loadChat(selectedChat) : sendTextToBot(failedQuestion, true)}
                 onSend={sendTextToBot}
                 responseStyle={{ fontSize: textSize, fontFamily: font, color: fontColor }}
             />

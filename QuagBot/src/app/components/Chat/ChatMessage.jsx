@@ -3,12 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { chatAvatar, chatMessageRow } from '../ui/styles';
 import WelcomeText from './WelcomeText';
+import MarkdownMessage from './MarkdownMessage';
 
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
-const BUBBLE = 'rounded-card px-space-4 py-space-3 text-[0.92rem] leading-[1.45] whitespace-pre-wrap [overflow-wrap:anywhere]';
-const USER_BUBBLE = `${BUBBLE} min-w-0 max-w-[60%] max-[900px]:max-w-[85%] rounded-br-[2px] bg-user-bubble text-accent-contrast`;
+const BUBBLE = 'rounded-card px-space-4 py-space-3 text-[0.92rem] leading-[1.45] [overflow-wrap:anywhere]';
+const USER_BUBBLE = `${BUBBLE} whitespace-pre-wrap min-w-0 max-w-[60%] max-[900px]:max-w-[85%] rounded-br-[2px] bg-user-bubble text-accent-contrast`;
 const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text`;
 const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 
@@ -34,7 +35,7 @@ function ChatMessage({ role, text, responseStyle, animateWelcome = false }) {
 
       <div className={BOT_CONTENT}>
         <div className={BOT_BUBBLE} style={responseStyle}>
-          {animateWelcome ? <WelcomeText text={text} /> : text}
+          {animateWelcome ? <WelcomeText text={text} /> : <MarkdownMessage text={text} />}
         </div>
         {<Buttons text={text} />}
       </div>

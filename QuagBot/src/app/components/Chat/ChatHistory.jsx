@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Check, Pencil, Search, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Search, Trash2, X, RefreshCw } from 'lucide-react';
 import { sidebarTitle } from '../ui/styles';
 import NewChatButton from './NewChatButton';
 import { groupHistory } from '../../../lib/historyGroups';
 
 const actionStyle = 'shrink-0 cursor-pointer rounded-card p-space-2 text-text-muted hover:bg-navbar-bg hover:text-text focus-visible:outline-2 focus-visible:outline-important-border';
 
-function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat, onRenameChat }) {
+function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat, onRenameChat, loading, error, onRefresh }) {
   const [query, setQuery] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [title, setTitle] = useState('');
@@ -27,13 +27,18 @@ function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat,
       <div className="mb-space-4 flex justify-center border-b border-border pb-space-4">
         <NewChatButton onClick={onNewChat} />
       </div>
-      <h2 className={sidebarTitle}>Chat History</h2>
+      <div className="mb-space-2 flex items-center justify-between">
+        <h2 className={sidebarTitle}>Chat History</h2>
+        <button type="button" onClick={onRefresh} disabled={loading} aria-label="Refresh saved conversations" className={`${actionStyle} disabled:opacity-50`}><RefreshCw size={15} aria-hidden="true" className={loading ? 'animate-spin' : ''} /></button>
+      </div>
       <div className="mb-space-3 flex items-center gap-space-1 rounded-card border border-border bg-surface px-space-2 focus-within:border-important-border">
         <Search size={15} aria-hidden="true" className="shrink-0 text-text-muted" />
-        <input type="search" aria-label="Search conversations by title or message" placeholder="Search chats…" value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent py-space-2 text-sm text-text outline-none" />
+        <input type="search" aria-label="Search conversation titles and downloaded messages" placeholder="Search chats…" value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent py-space-2 text-sm text-text outline-none" />
       </div>
-      <p className="mb-space-3 text-xs text-text-muted">Saved in this browser for your account.</p>
-      {chats.length === 0 && <p className="text-sm text-text-muted">Your conversations will appear here after your first message.</p>}
+      <p className="mb-space-3 text-xs text-text-muted">AI chats sync across devices. Renames apply to this browser.</p>
+      {loading && <p role="status" className="mb-space-2 text-xs text-text-muted">Loading saved conversations…</p>}
+      {error && <div role="alert" className="mb-space-3 text-xs text-error"><p>{error} Cached chats remain available.</p><button type="button" onClick={onRefresh} disabled={loading} className="mt-space-1 cursor-pointer underline disabled:opacity-50">Try again</button></div>}
+      {!loading && !error && chats.length === 0 && <p className="text-sm text-text-muted">Your conversations will appear here after your first message.</p>}
       {query.trim() && <p role="status" className="mb-space-2 text-xs text-text-muted">{filtered.length ? `${filtered.length} conversation${filtered.length === 1 ? '' : 's'} found` : 'No conversations match your search.'}</p>}
       {groupHistory(filtered).map(([label, items]) => (
         <section key={label} aria-label={`${label}'s conversations`} className="mb-space-4">
@@ -54,8 +59,8 @@ function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat,
                 <button type="button" title={chat.title} aria-current={chat.id === activeChat ? 'true' : undefined} onClick={() => onSelectChat(chat)} className="min-w-0 flex-1 cursor-pointer truncate rounded-card px-space-2 py-space-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-important-border">
                   {chat.title}
                 </button>
-                <button type="button" onClick={() => { setEditingId(chat.id); setTitle(chat.title); }} aria-label={`Rename conversation: ${chat.title}`} className={actionStyle}><Pencil size={15} aria-hidden="true" /></button>
-                <button type="button" onClick={() => onDeleteChat(chat.id)} aria-label={`Delete conversation: ${chat.title}`} className={`${actionStyle} hover:bg-danger-bg hover:text-danger`}><Trash2 size={15} aria-hidden="true" /></button>
+                <button type="button" onClick={() => { setEditingId(chat.id); setTitle(chat.title); }} title="Rename in this browser" aria-label={`Rename conversation in this browser: ${chat.title}`} className={actionStyle}><Pencil size={15} aria-hidden="true" /></button>
+                {!chat.backendConversationId && <button type="button" onClick={() => onDeleteChat(chat.id)} title="Delete local chat" aria-label={`Delete conversation: ${chat.title}`} className={`${actionStyle} hover:bg-danger-bg hover:text-danger`}><Trash2 size={15} aria-hidden="true" /></button>}
               </div>
             )}
           </li>

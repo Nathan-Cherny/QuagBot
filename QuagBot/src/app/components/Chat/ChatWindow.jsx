@@ -8,7 +8,7 @@ import { chatAvatar, chatMessageRow } from '../ui/styles';
 
 const TYPING_DOT = 'size-[6px] animate-typing-bounce rounded-full bg-text-muted';
 
-function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, error, onRetry, onOpenHistory, storageError, ready = true, title = 'New chat' }) {
+function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, error, onRetry, onOpenHistory, storageError, ready = true, archived = false, isRestoring = false, sendDisabled = false, remotePending = false, onRefreshConversation, title = 'New chat' }) {
   const scrollRef = useRef(null);
   const contentRef = useRef(null);
   const followLatest = useRef(true);
@@ -58,19 +58,22 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
         <NewChatButton onClick={onNewChat} />
       </div>
       <div className="border-b border-border px-space-4 py-space-2 text-xs text-text-muted">
-        Practice mode · Prepared answers while the AI service is being connected.
+        AI chat · Saved conversations sync to your account.
         {!ready && <span role="status"> Loading your chats…</span>}
+        {remotePending && <p role="status">An earlier answer is still pending. <button type="button" onClick={onRefreshConversation} disabled={isRestoring} className="cursor-pointer underline">Refresh conversation</button> to check its progress, or start a new chat.</p>}
+        {archived && <p role="status">This chat predates the AI connection and is read-only. Start a new chat to ask the AI.</p>}
         {storageError && <p role="alert" className="mt-space-1 text-error">{storageError}</p>}
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto p-space-5 max-[900px]:p-space-3 [overflow-anchor:none]" ref={scrollRef}>
         <div ref={contentRef} className="flex flex-col gap-space-3">
+        {isRestoring && <p role="status" className="text-sm text-text-muted">Loading conversation…</p>}
         {messages.map((message) => (
           <ChatMessage key={message.id} role={message.role} text={message.text} responseStyle={responseStyle} animateWelcome={message.id === 'welcome' && !messages.some((item) => item.role === 'user')} />
         ))}
 
-        {!messages.some((message) => message.role === 'user') && (
-          <SuggestedQuestions onSelect={onSend} disabled={isLoading || !ready} />
+        {!isRestoring && !sendDisabled && !messages.some((message) => message.role === 'user') && (
+          <SuggestedQuestions onSelect={onSend} disabled={isLoading || isRestoring || sendDisabled || !ready || archived} />
         )}
 
         {isLoading && (
@@ -89,7 +92,7 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
         {error && (
           <div role="alert" className="rounded-card border border-danger-border bg-danger-bg p-space-3 text-sm text-error">
             <p>{error}</p>
-            <button type="button" onClick={onRetry} disabled={isLoading || !ready} className="mt-space-2 cursor-pointer rounded-card border border-danger-border bg-surface px-space-3 py-space-2 font-medium hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" onClick={onRetry} disabled={isLoading || isRestoring || !ready || archived} className="mt-space-2 cursor-pointer rounded-card border border-danger-border bg-surface px-space-3 py-space-2 font-medium hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50">
               Try again
             </button>
           </div>
@@ -103,7 +106,7 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
           </button>
         )}
       </div>
-      <ChatInput onSend={onSend} disabled={isLoading || !ready} />
+      <ChatInput onSend={onSend} disabled={isLoading || isRestoring || sendDisabled || !ready || archived} />
     </div>
   );
 }
