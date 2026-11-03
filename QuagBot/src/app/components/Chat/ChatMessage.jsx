@@ -1,10 +1,11 @@
 import UserAvatar from '../User/UserAvatar';
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Download, Watch, WatchIcon } from 'lucide-react';
 import { chatAvatar, chatMessageRow } from '../ui/styles';
 import WelcomeText from './WelcomeText';
 import MarkdownMessage from './MarkdownMessage';
-
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import PDFDocument from './PracticeExamPDF';
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
@@ -21,7 +22,7 @@ function ChatMessage({ role, text, responseStyle, animateWelcome = false }) {
     <div className={`${chatMessageRow} justify-end`}>
       {!isUser && <img src={BOT_AVATAR_SRC} alt="Bot" className={chatAvatar} />}
 
-      <div className={USER_BUBBLE} style={{fontSize, fontFamily}}>
+      <div className={USER_BUBBLE} style={{ fontSize, fontFamily }}>
         {text}
       </div>
 
@@ -35,6 +36,22 @@ function ChatMessage({ role, text, responseStyle, animateWelcome = false }) {
 
       <div className={BOT_CONTENT}>
         <div className={BOT_BUBBLE} style={responseStyle}>
+          <div className='flex-col flex'>
+            <MarkdownMessage text={(isPDF) ? text.title : text} />
+          </div>
+
+          {isPDF && <PDFDownloadLink
+            className='hover:scale-105 border p-1 bg-white/20 shadow-xl'
+            document={
+              <PDFDocument title={text.title} textContent={text.text} />
+            }
+            fileName={`${text.title}.pdf`}
+          >
+            {({ loading }) =>
+              loading ? <WatchIcon /> : <Download />
+            }
+          </PDFDownloadLink>}
+
           {animateWelcome ? <WelcomeText text={text} /> : <MarkdownMessage text={text} />}
         </div>
         {<Buttons text={text} />}

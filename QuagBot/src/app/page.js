@@ -1,5 +1,14 @@
 "use client"
 
+import { useRef, useState } from "react";
+import ChatWindow from "./components/Chat/ChatWindow";
+import Sidebar from "./components/Layout/Sidebar";
+import ChatHistory from "./components/Chat/ChatHistory";
+import ChatSettings from "./components/Chat/ChatSettings";
+import PageWrapper from "./components/Layout/PageWrapper";
+import { sendMessage } from "@/lib/api/messages";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import PDFDocument, { GeneratePracticeExam, parseMarkdownJson } from "./components/Chat/PracticeExamPDF";
 import { useEffect, useRef, useState } from 'react';
 import ChatWindow from './components/Chat/ChatWindow';
 import Sidebar from './components/Layout/Sidebar';
