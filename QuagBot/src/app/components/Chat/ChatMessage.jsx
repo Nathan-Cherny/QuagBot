@@ -14,7 +14,7 @@ const USER_BUBBLE = `${BUBBLE} whitespace-pre-wrap min-w-0 max-w-[60%] max-[900p
 const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text`;
 const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 
-function ChatMessage({ role, text, responseStyle, animateWelcome = false }) {
+function ChatMessage({ role, text, responseStyle, isPDF, animateWelcome = false }) {
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
 
@@ -36,9 +36,6 @@ function ChatMessage({ role, text, responseStyle, animateWelcome = false }) {
 
       <div className={BOT_CONTENT}>
         <div className={BOT_BUBBLE} style={responseStyle}>
-          <div className='flex-col flex'>
-            <MarkdownMessage text={(isPDF) ? text.title : text} />
-          </div>
 
           {isPDF && <PDFDownloadLink
             className='hover:scale-105 border p-1 bg-white/20 shadow-xl'

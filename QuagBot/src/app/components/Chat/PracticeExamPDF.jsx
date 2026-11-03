@@ -96,7 +96,7 @@ export function GeneratePracticeExam({ onSend, messages }) {
                 messages.forEach(message => messageTotalText += `${message.text}\n\n`)
 
                 const settingsprompt = `The quiz should be, on a scale from 1-5, a ${difficulty} in difficulty. It should have ${questions} questions. Accepted types of questions are: ${questionTypes.join(",")}.`
-                const basicPrompt = `Generate a short practice exam based on the content of the following conversation. ${settingsprompt} Return as a JSON format - title : String, text : String, isValid : Boolean. If you do not have sufficient information, leave all fields blank except for isValid, which should be false. The questions should not be about the conversation itself; more about the topics discussed in the conversation. Make sure to include an answer key at the end.`
+                const basicPrompt = `Generate a short practice exam based on the content of the following conversation. ${settingsprompt} Return as a JSON format - title : String, text : String, isValid : Boolean. If you do not have sufficient information, leave all fields blank except for isValid, which should be false. The questions should not be about the conversation itself; more about the topics discussed in the conversation. Make sure to include an answer key at the end.\n`
                 const finalprompt = `${basicPrompt}\n${messageTotalText}`
 
                 onSend(finalprompt, true, "QuagBot, please create a practice exam for me!")
@@ -108,7 +108,7 @@ export function GeneratePracticeExam({ onSend, messages }) {
         )
       }
       <button type="button" className={PILL_BUTTON} onClick={() => { setIsOpen(true) }}>
-        <h1 className='flex flex-row items-center gap-1'><Lightbulb />Generate Practice Exam</h1>
+        <h1 className='flex flex-row items-center gap-1'>Create Practice Exam</h1>
       </button>
     </div >
   )

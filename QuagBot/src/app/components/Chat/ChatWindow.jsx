@@ -58,7 +58,7 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
         <NewChatButton onClick={onNewChat} />
       </div>
       <div className="border-b border-border px-space-4 py-space-2 text-xs text-text-muted">
-        AI chat · Saved conversations sync to your account.
+        {/* AI chat · Saved conversations sync to your account. */}
         {!ready && <span role="status"> Loading your chats…</span>}
         {remotePending && <p role="status">An earlier answer is still pending. <button type="button" onClick={onRefreshConversation} disabled={isRestoring} className="cursor-pointer underline">Refresh conversation</button> to check its progress, or start a new chat.</p>}
         {archived && <p role="status">This chat predates the AI connection and is read-only. Start a new chat to ask the AI.</p>}
