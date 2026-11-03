@@ -8,7 +8,7 @@ import { chatAvatar, chatMessageRow } from '../ui/styles';
 
 const TYPING_DOT = 'size-[6px] animate-typing-bounce rounded-full bg-text-muted';
 
-function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, error, onRetry, onOpenHistory, storageError, ready = true, archived = false, isRestoring = false, sendDisabled = false, remotePending = false, onRefreshConversation, title = 'New chat' }) {
+function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, error, onRetry, retryLabel = 'Try again', onOpenHistory, storageError, ready = true, archived = false, isRestoring = false, sendDisabled = false, remotePending = false, onRefreshConversation, title = 'New chat' }) {
   const scrollRef = useRef(null);
   const contentRef = useRef(null);
   const followLatest = useRef(true);
@@ -93,7 +93,7 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
           <div role="alert" className="rounded-card border border-danger-border bg-danger-bg p-space-3 text-sm text-error">
             <p>{error}</p>
             <button type="button" onClick={onRetry} disabled={isLoading || isRestoring || !ready || archived} className="mt-space-2 cursor-pointer rounded-card border border-danger-border bg-surface px-space-3 py-space-2 font-medium hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50">
-              Try again
+              {retryLabel}
             </button>
           </div>
         )}

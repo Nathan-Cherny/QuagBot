@@ -38,6 +38,7 @@ function Home() {
     const [historyRefresh, setHistoryRefresh] = useState(0);
     const [isRestoring, setIsRestoring] = useState(false);
     const [loadError, setLoadError] = useState(null);
+    const [conversationUnavailable, setConversationUnavailable] = useState(false);
     const [remotePending, setRemotePending] = useState(false);
     const [failedQuestion, setFailedQuestion] = useState(null);
     const [requestError, setRequestError] = useState(null);
@@ -53,6 +54,7 @@ function Home() {
             messageRequest.current = null;
             setIsRestoring(false);
             setLoadError(null);
+            setConversationUnavailable(false);
             setRemotePending(false);
             setHistoryLoading(true);
             setHistoryError(null);
@@ -159,7 +161,7 @@ function Home() {
 
     async function sendTextToBot(text, isRetry = false) {
         if (!storageKey || pendingReply.current || typeof text !== 'string' || !text.trim()) return;
-        if (archived || isRestoring || loadError || remotePending) return;
+        if (archived || isRestoring || loadError || remotePending || conversationUnavailable) return;
         text = text.trim();
         const id = activeChat ?? crypto.randomUUID();
         const content = isRetry ? messages : [...messages, { id: crypto.randomUUID(), role: 'user', text }];
@@ -190,6 +192,7 @@ function Home() {
         } catch (error) {
             if (!controller.signal.aborted) {
                 setFailedQuestion(text);
+                setConversationUnavailable(error.status === 404);
                 setRequestError(error.message || 'The AI service could not respond. Please try again.');
             }
         } finally {
@@ -205,6 +208,7 @@ function Home() {
         messageRequest.current = null;
         setIsRestoring(false);
         setLoadError(null);
+        setConversationUnavailable(false);
         setRemotePending(false);
         if (pendingReply.current) {
             pendingReply.current.abort();
@@ -228,6 +232,7 @@ function Home() {
         setFailedQuestion(null);
         setRequestError(null);
         setLoadError(null);
+        setConversationUnavailable(false);
         setRemotePending(false);
         setIsRestoring(false);
         setMessages(chat.content.length ? [...chat.content] : [INITIAL_MESSAGE]);
@@ -253,7 +258,10 @@ function Home() {
             // Reading history must not move it into the Today group.
             setChats((previous) => previous.map((item) => item.id === chat.id ? { ...item, content: restored.messages } : item));
         } catch (error) {
-            if (!controller.signal.aborted) setLoadError(`Could not refresh this conversation. ${error.message}`);
+            if (!controller.signal.aborted) {
+                setConversationUnavailable(error.status === 404);
+                setLoadError(error.status === 404 ? error.message : `Could not refresh this conversation. ${error.message}`);
+            }
         } finally {
             if (messageRequest.current === controller) {
                 messageRequest.current = null;
@@ -298,14 +306,15 @@ function Home() {
                 ready={Boolean(storageKey)}
                 archived={archived}
                 isRestoring={isRestoring}
-                sendDisabled={Boolean(loadError) || remotePending}
+                sendDisabled={Boolean(loadError) || remotePending || conversationUnavailable}
                 remotePending={remotePending}
                 onRefreshConversation={() => selectedChat && loadChat(selectedChat)}
                 messages={messages}
                 title={chats.find((chat) => chat.id === activeChat)?.title ?? 'New chat'}
                 isLoading={isLoading}
                 error={loadError ?? (!archived && failedQuestion ? (requestError ?? "This question has no reply yet. Try again to request an AI response.") : null)}
-                onRetry={() => loadError && selectedChat ? loadChat(selectedChat) : sendTextToBot(failedQuestion, true)}
+                retryLabel={conversationUnavailable ? 'Start new chat' : 'Try again'}
+                onRetry={() => conversationUnavailable ? startNewChat() : loadError && selectedChat ? loadChat(selectedChat) : sendTextToBot(failedQuestion, true)}
                 onSend={sendTextToBot}
                 responseStyle={{ fontSize: textSize, fontFamily: font, color: fontColor }}
             />

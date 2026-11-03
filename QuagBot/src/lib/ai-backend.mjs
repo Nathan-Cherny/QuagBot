@@ -95,8 +95,8 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
     });
     if (!response.ok) {
       await response.body?.cancel();
-      if (response.status === 404 && path === '/chat/stream') {
-        throw new AIError('The AI conversation was not found. Start a new chat.');
+      if (response.status === 404 && (path === '/chat/stream' || /^\/conversations\/[^/]+\/messages$/.test(path))) {
+        throw new AIError('This conversation is no longer available for your account. Any locally saved messages are kept. Start a new chat to continue.', 404);
       }
       throw new AIError(`The AI service rejected the request (${response.status}). Please try again.`);
     }

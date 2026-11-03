@@ -7,7 +7,11 @@ async function request(path, { signal, body, method = 'GET' } = {}) {
     signal,
   });
   const data = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(data?.error ?? `AI request failed (${response.status}). Please try again.`);
+  if (!response.ok) {
+    const error = new Error(data?.error ?? `AI request failed (${response.status}). Please try again.`);
+    error.status = response.status;
+    throw error;
+  }
   if (!data) throw new Error('The AI service returned an invalid response. Please try again.');
   return data;
 }

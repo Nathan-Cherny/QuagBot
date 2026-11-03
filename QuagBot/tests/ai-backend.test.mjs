@@ -88,6 +88,7 @@ test('history GET requests forward identity with no body and validate responses'
     let body = '';
     for await (const chunk of req) body += chunk;
     requests.push({ method: req.method, body, userId: req.headers['x-user-id'], path: req.url });
+    if (req.headers['x-user-id'] === 'missing-conversation') { res.writeHead(404); res.end('{"detail":"Not found"}'); return; }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     if (req.headers['x-user-id'] === 'bad-schema') { res.end('{}'); return; }
     res.end(JSON.stringify(req.url === '/conversations' ? [
@@ -107,6 +108,9 @@ test('history GET requests forward identity with no body and validate responses'
   assert.equal(requests[1].path, '/conversations/server-id/messages');
   await assert.rejects(listAIConversations({ userId: 'bad-schema' }), /invalid conversation history/);
   await assert.rejects(listAIMessages({ userId: 'bad-schema', conversationId: 'server-id' }), /invalid messages/);
+  const unavailable = (error) => error.status === 404 && /no longer available for your account/.test(error.message) && !/try again/i.test(error.message);
+  await assert.rejects(listAIMessages({ userId: 'missing-conversation', conversationId: 'server-id' }), unavailable);
+  await assert.rejects(callAI('/chat/stream', { userId: 'missing-conversation', body: {} }, readResponse), unavailable);
 });
 
 test('missing backend configuration fails explicitly', async () => {
