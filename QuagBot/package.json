@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test tests/*.test.mjs",
+    "test:ai": "node --env-file-if-exists=.env.local tests/smoke-ai.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

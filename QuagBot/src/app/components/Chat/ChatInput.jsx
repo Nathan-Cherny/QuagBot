@@ -48,6 +48,7 @@ function ChatInput({ onSend, disabled }) {
         className="max-h-[160px] min-w-0 flex-1 resize-none overflow-y-auto rounded-card border border-border bg-bg px-space-3 py-space-2 text-[0.92rem] leading-[1.4] text-text focus:outline-2 focus:outline-offset-1 focus:outline-accent"
         placeholder="Send a message..."
         rows={1}
+        maxLength={10000}
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={handleKeyDown}

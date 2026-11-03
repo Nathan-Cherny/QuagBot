@@ -34,6 +34,12 @@ export async function updateSession(request) {
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
 
+  if (!user && path.startsWith('/api/')) {
+    const unauthorized = NextResponse.json({ error: 'Please sign in again to use AI chat.' }, { status: 401 });
+    response.cookies.getAll().forEach((cookie) => unauthorized.cookies.set(cookie));
+    return unauthorized;
+  }
+
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
