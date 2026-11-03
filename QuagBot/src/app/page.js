@@ -8,7 +8,7 @@ import ChatSettings from "./components/Chat/ChatSettings";
 import PageWrapper from "./components/Layout/PageWrapper";
 import { sendMessage } from "@/lib/api/messages";
 import { PDFDownloadLink } from "@react-pdf/renderer";
-import MyPdfDocument, { GeneratePracticeExam, parseMarkdownJson } from "./components/Chat/PracticeExamPDF";
+import PDFDocument, { GeneratePracticeExam, parseMarkdownJson } from "./components/Chat/PracticeExamPDF";
 
 const INITIAL_MESSAGE = {
   id: "welcome",
@@ -46,7 +46,7 @@ function Home() {
     setIsLoading(false);
   }
 
-  async function sendTextToBot(text, isPDF) {
+  async function sendTextToBot(text, isPDF, optionalDisplayMsg) {
     if (pendingReply.current) return;
 
     if (!conversationId) {
@@ -69,7 +69,7 @@ function Home() {
 
     setMessages((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), role: "user", text },
+      { id: crypto.randomUUID(), role: "user", text : optionalDisplayMsg ?? text },
     ]);
     setIsLoading(true);
 
@@ -147,7 +147,7 @@ function Home() {
           fontColor={fontColor}
           setFontColor={setFontColor}
         />
-        <GeneratePracticeExam/>
+        <GeneratePracticeExam onSend={sendTextToBot} messages={messages} />
       </Sidebar>
     </PageWrapper>
   );

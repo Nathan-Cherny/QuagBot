@@ -3,7 +3,7 @@ import { Copy, Download, Watch, WatchIcon } from 'lucide-react';
 import { chatAvatar, chatMessageRow } from '../ui/styles';
 import MarkdownMessage from './MarkdownMessage';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import MyPdfDocument from './PracticeExamPDF';
+import PDFDocument from './PracticeExamPDF';
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
@@ -34,16 +34,18 @@ function ChatMessage({ role, text, responseStyle, isPDF }) {
 
       <div className={BOT_CONTENT}>
         <div className={BOT_BUBBLE} style={responseStyle}>
-          <MarkdownMessage text={(isPDF) ? text.title : text} />
+          <div className='flex-col flex'>
+            <MarkdownMessage text={(isPDF) ? text.title : text} />
+          </div>
 
           {isPDF && <PDFDownloadLink
             document={
-              <MyPdfDocument title={text.title} textContent={text.text} />
+              <PDFDocument title={text.title} textContent={text.text} />
             }
             fileName={`${text.title}.pdf`}
           >
             {({ loading }) =>
-              loading ? <WatchIcon/> : <Download/>
+              loading ? <WatchIcon /> : <Download />
             }
           </PDFDownloadLink>}
 

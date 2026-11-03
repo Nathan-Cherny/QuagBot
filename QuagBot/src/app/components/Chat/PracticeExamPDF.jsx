@@ -1,5 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { PILL_BUTTON } from './ChatSettings';
+import { Lightbulb } from 'lucide-react';
 
 // Create styles similar to React Native StyleSheet
 const styles = StyleSheet.create({
@@ -24,7 +26,7 @@ const styles = StyleSheet.create({
 });
 
 // The actual PDF Structure
-const MyPdfDocument = ({ textContent, title }) => (
+const PDFDocument = ({ textContent, title }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <View style={styles.section}>
@@ -50,12 +52,21 @@ export function parseMarkdownJson(markdownString) {
   }
 }
 
-export function GeneratePracticeExam(){
+export function GeneratePracticeExam({ onSend, messages }) {
   return (
-    <div className='fixed inset-0 z-100 flex items-center justify-center bg-black/30'>
-      <h1>Test</h1>
-    </div>
+    <div className='w-full'>
+      <button type="button" className={PILL_BUTTON} onClick={() => {
+        let messageTotalText = ""
+        messages.forEach(message => messageTotalText += `${message.text}\n\n`)
+        
+        const pdfprompt = "generate a short practice exam based on the content of the following conversation. return as a JSON format: title : String, text : String"
+
+        onSend(`${pdfprompt}\n${messageTotalText}`, true, "QuagBot, please create a practice exam for me!")
+      }}>
+        <h1 className='flex flex-row items-center gap-1'><Lightbulb />Generate Practice Exam</h1>
+      </button>
+    </div >
   )
 }
 
-export default MyPdfDocument;
+export default PDFDocument;

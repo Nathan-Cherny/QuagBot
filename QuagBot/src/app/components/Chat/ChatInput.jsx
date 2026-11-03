@@ -28,7 +28,7 @@ function ChatInput({ onSend, disabled }) {
   function submit() {
     const trimmed = value.trim();
     if (!trimmed || disabled) return;
-    onSend(trimmed, true);
+    onSend(trimmed, false);
     setValue('');
   }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const PILL_BUTTON = 'cursor-pointer rounded-full border border-black bg-surface px-space-4 py-space-2';
+export const PILL_BUTTON = 'cursor-pointer rounded-full border border-black bg-surface px-space-4 py-space-2 w-full hover:scale-105';
 const FIELD = 'my-space-4 flex flex-col gap-space-1 text-left text-black';
 // color-scheme: light keeps the native dropdown light even if the OS is in dark mode.
 const SELECT = 'rounded-card border border-border bg-surface p-space-2 text-black [color-scheme:light] [font:inherit]';

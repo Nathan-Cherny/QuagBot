@@ -39,8 +39,18 @@ function ChatHistory({ onSelectChat, activeChat, onNewChat }) {
         {
           "id": "2965a208-a2fb-4621-9f7c-1de94b27101a",
           "role": "quagbot",
-          "text": "idk lol go read a book"
-        }
+          "text": "He's the first president of the United States."
+        },
+        {
+          "id": "168d106c-7133-4fbd-999e-3d4288f777eg",
+          "role": "user",
+          "text": "How was he important?"
+        },
+        {
+          "id": "2965a208-a2fb-4621-9f7c-1de94b27101b",
+          "role": "quagbot",
+          "text": "He was a crucial founding father who spearheaded the revolution and was a top general during the war. He offered stability and leadership to a developing country that desperately needed it."
+        },
       ]
     },
     {
