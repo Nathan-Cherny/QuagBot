@@ -2,6 +2,7 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { PILL_BUTTON } from './ChatSettings';
 import { Lightbulb } from 'lucide-react';
+import MarkdownMessage from './MarkdownMessage';
 
 // Create styles similar to React Native StyleSheet
 const styles = StyleSheet.create({
@@ -31,7 +32,7 @@ const PDFDocument = ({ textContent, title }) => (
     <Page size="A4" style={styles.page}>
       <View style={styles.section}>
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.body}>{textContent}</Text>
+        <MarkdownMessage text={textContent}/>
       </View>
     </Page>
   </Document>
