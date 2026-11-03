@@ -8,7 +8,7 @@ import ChatSettings from "./components/Chat/ChatSettings";
 import PageWrapper from "./components/Layout/PageWrapper";
 import { sendMessage } from "@/lib/api/messages";
 import { PDFDownloadLink } from "@react-pdf/renderer";
-import MyPdfDocument, { parseMarkdownJson } from "./components/Chat/PracticeExamPDF";
+import MyPdfDocument, { GeneratePracticeExam, parseMarkdownJson } from "./components/Chat/PracticeExamPDF";
 
 const INITIAL_MESSAGE = {
   id: "welcome",
@@ -147,6 +147,7 @@ function Home() {
           fontColor={fontColor}
           setFontColor={setFontColor}
         />
+        <GeneratePracticeExam/>
       </Sidebar>
     </PageWrapper>
   );

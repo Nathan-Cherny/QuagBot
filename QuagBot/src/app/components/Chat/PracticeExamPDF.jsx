@@ -50,4 +50,12 @@ export function parseMarkdownJson(markdownString) {
   }
 }
 
+export function GeneratePracticeExam(){
+  return (
+    <div className='fixed inset-0 z-100 flex items-center justify-center bg-black/30'>
+      <h1>Test</h1>
+    </div>
+  )
+}
+
 export default MyPdfDocument;
