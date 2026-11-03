@@ -7,6 +7,8 @@ import ChatHistory from "./components/Chat/ChatHistory";
 import ChatSettings from "./components/Chat/ChatSettings";
 import PageWrapper from "./components/Layout/PageWrapper";
 import { sendMessage } from "@/lib/api/messages";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import MyPdfDocument, { parseMarkdownJson } from "./components/Chat/PracticeExamPDF";
 
 const INITIAL_MESSAGE = {
   id: "welcome",
@@ -28,7 +30,8 @@ function Home() {
   // The conversation ChatWindow created for the current chat. Tagged with the
   // chatVersion it was created for, so a slow response from a previous
   // ChatWindow can never be used by a newer chat.
-  const createdConversation = created?.version === chatVersion ? created.conversation : null;
+  const createdConversation =
+    created?.version === chatVersion ? created.conversation : null;
 
   // A chat picked from ChatHistory wins; otherwise use the freshly created conversation.
   const conversationId = activeChat?.id ?? createdConversation?.id ?? null;
@@ -43,7 +46,7 @@ function Home() {
     setIsLoading(false);
   }
 
-  async function sendTextToBot(text) {
+  async function sendTextToBot(text, isPDF) {
     if (pendingReply.current) return;
 
     if (!conversationId) {
@@ -82,12 +85,18 @@ function Home() {
       botText = "Sorry, something went wrong. Please try again.";
     }
 
+    if (isPDF) {
+      let parsedJson = parseMarkdownJson(botText);
+      botText = parsedJson
+    }
+    
     setMessages((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), role: "quagbot", text: botText },
+      { id: crypto.randomUUID(), role: "quagbot", text: botText, isPDF: isPDF },
     ]);
     setIsLoading(false);
     pendingReply.current = null;
+
   }
 
   function startNewChat() {
@@ -119,7 +128,9 @@ function Home() {
         messages={messages}
         isLoading={isLoading}
         onSend={sendTextToBot}
-        onConversationCreated={(conversation) => handleConversationCreated(conversation, chatVersion)}
+        onConversationCreated={(conversation) =>
+          handleConversationCreated(conversation, chatVersion)
+        }
         responseStyle={{
           fontSize: textSize,
           fontFamily: font,

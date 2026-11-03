@@ -20,7 +20,7 @@ function ChatHistory({ onSelectChat, activeChat, onNewChat }) {
         {
           "id": "2965a208-a2fb-4621-9f7c-1de94b27101a",
           "role": "quagbot",
-          "text": "Howdy pardner"
+          "text": "Howdy **pardner** "
         }
       ]
     },
