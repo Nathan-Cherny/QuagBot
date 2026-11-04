@@ -121,7 +121,7 @@ export async function createAIConversation({ userId, title, signal }) {
     userId, body: { prompt: SYSTEM_PROMPT }, method: 'PUT', signal,
   }, readResponse);
   return callAI('/conversations', {
-    userId, body: { title }, signal,
+    userId, body: { title, domain: 'education' }, signal,
   }, async (response) => {
     let data;
     try { data = JSON.parse(await readResponse(response)); }

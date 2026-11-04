@@ -67,6 +67,9 @@ test('local HTTP integration: forwards identity and conversation, handles retrie
   await assert.rejects(callAI('/conversations', options, readResponse), /503/);
   const conversation = await createAIConversation({ userId: options.userId, title: 'Washington' });
   assert.equal(conversation.id, 'backend-conversation-1');
+  assert.deepEqual(requests.filter((request) => request.path === '/conversations').at(-1).body, {
+    title: 'Washington', domain: 'education',
+  });
   const chatOptions = { ...options, body: { conversation_id: conversation.id, message: 'Who was Washington?' } };
   for (const message of ['Who was Washington?', 'Tell me more']) {
     const reply = await callAI('/chat/stream', { ...chatOptions, body: { ...chatOptions.body, message } }, async (res) => parseChatResponse(await readResponse(res), res.headers.get('content-type')));
