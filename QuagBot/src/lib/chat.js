@@ -1,5 +1,5 @@
 // This is a limited local practice responder, not an AI model.
-// Replace requestReply with the infrastructure API, sending the full conversation.
+// Supplies local backup responses while the AI service is unavailable.
 const TOPICS = [
   {
     match: /\b(washington|continental army)\b/i,
@@ -82,7 +82,7 @@ const TOPICS = [
 
 const HELP = 'You can ask about Washington, the causes of the Revolution, the Boston Tea Party, Lexington and Concord, Saratoga, Yorktown, the Declaration of Independence, French support, Patriots and Loyalists, or the Treaty of Paris.';
 
-export function getPracticeReply(messages) {
+export function getPracticeReply(messages, { outage = false } = {}) {
   const turns = messages.filter((message) => message.role === 'user');
   const question = turns.at(-1)?.text.trim() ?? '';
   if (/^(hi|hello|hey)[!. ]*$/i.test(question)) return `Hello! I’m QuagBot, your Revolutionary War study companion. ${HELP}`;
@@ -103,6 +103,7 @@ export function getPracticeReply(messages) {
     if (/^why/i.test(question) && followUp) return `Why it mattered\n\n${topic.significance}`;
     return `${topic.title}\n\n${topic.summary}\n\n${topic.detail}\n\nWhy it matters: ${topic.significance}`;
   }
+  if (outage) return null;
   if (/\b(revolution|war|battle|colon|british|america|history|king|177\d|178\d)\b/i.test(question)) {
     return `That is a history question beyond my current practice material. I don’t have a reliable prepared answer for it yet.\n\n${HELP}\n\nFull answers to new history questions will be available after the AI service is connected.`;
   }
@@ -126,4 +127,12 @@ export function requestReply(messages, { signal }) {
     if (signal.aborted) abort();
     else signal.addEventListener('abort', abort, { once: true });
   });
+}
+
+
+export function getOutageReply(messages) {
+  const prepared = getPracticeReply(messages, { outage: true });
+  return prepared
+    ? prepared
+    : 'I’m having trouble connecting right now and can’t answer this question. Please try again in a little while. You can still ask about key people and events of the American Revolution.';
 }

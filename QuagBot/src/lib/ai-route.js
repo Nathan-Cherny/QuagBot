@@ -20,7 +20,10 @@ export function authenticatedRoute(handler) {
       if (!(error instanceof AIError)) console.error('AI request failed:', error.name);
       return NextResponse.json(
         { error: error instanceof AIError ? error.message : 'The AI request failed. Please try again.' },
-        { status: error instanceof AIError ? error.status : 500 },
+        {
+          status: error instanceof AIError ? error.status : 500,
+          headers: error.retryAfter ? { 'Retry-After': String(error.retryAfter) } : {},
+        },
       );
     }
   };
