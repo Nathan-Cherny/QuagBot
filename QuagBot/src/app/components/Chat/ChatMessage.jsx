@@ -14,12 +14,11 @@ const USER_BUBBLE = `${BUBBLE} whitespace-pre-wrap min-w-0 max-w-[60%] max-[900p
 const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text flex flex-row gap-5 items-center`;
 const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 
-function ChatMessage({ role, text, responseStyle, isPDF, animateWelcome = false }) {
+function ChatMessage({ role, text = "", responseStyle, isPDF, animateWelcome = false }) {
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
 
   if (text.startsWith("```json")) { isPDF = true; text = parseMarkdownJson(text) }
-  console.log(`${text} ${isUser}`)
 
   if (isUser) return (
     <div className={`${chatMessageRow} justify-end`}>

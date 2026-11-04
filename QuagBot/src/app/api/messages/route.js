@@ -10,6 +10,8 @@ export const POST = authenticatedRoute(async (request, body, userId) => {
     throw new AIError(`Enter a question between 1 and ${MAX_MESSAGE_LENGTH} characters.`, 400);
   }
   // Send the actual user text. Model instructions and retrieval belong in the AI service.
+
+
   const payload = await callAI('/chat/stream', {
     userId,
     body: { conversation_id: body.conversationId, message: body.message.trim() },
