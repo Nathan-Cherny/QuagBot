@@ -88,10 +88,6 @@ export function GeneratePracticeExam({ onSend, messages }) {
               </label>
 
               <button type="button" className={`${PILL_BUTTON} bg-blue-200!`} onClick={() => {
-                console.log(`
-                ${difficulty} ${questions} ${questionTypes}
-                  `)
-
                 let messageTotalText = ""
                 messages.forEach(message => messageTotalText += `${message.text}\n\n`)
 
@@ -99,7 +95,7 @@ export function GeneratePracticeExam({ onSend, messages }) {
                 const basicPrompt = `Generate a short practice exam based on the content of the following conversation. ${settingsprompt} Return as a JSON format - title : String, text : String, isValid : Boolean. If you do not have sufficient information, leave all fields blank except for isValid, which should be false. The questions should not be about the conversation itself; more about the topics discussed in the conversation. Make sure to include an answer key at the end.\n`
                 const finalprompt = `${basicPrompt}\n${messageTotalText}`
 
-                onSend(finalprompt, true, "QuagBot, please create a practice exam for me!")
+                onSend(finalprompt, false, true)
                 setIsOpen(false)
               }}>Create</button>
               <button type="button" className={PILL_BUTTON} onClick={() => setIsOpen(false)}>Cancel</button>

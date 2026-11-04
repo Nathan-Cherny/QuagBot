@@ -29,6 +29,7 @@ const INITIAL_MESSAGE = {
   id: "welcome",
   role: "quagbot",
   text: "Hi! I'm QuagBot, your Revolutionary War study companion.\n\nWhat would you like to learn today? Choose a question below or type your own.",
+  isPDF: false,
 };
 
 function Home() {
@@ -213,7 +214,7 @@ function Home() {
     });
   }
 
-  async function sendTextToBot(text, isRetry = false) {
+  async function sendTextToBot(text, isRetry = false, isPDF = false) {
     if (
       !storageKey ||
       pendingReply.current ||
@@ -231,9 +232,10 @@ function Home() {
       return;
     text = text.trim();
     const id = activeChat ?? crypto.randomUUID();
+    const userMessage = (isPDF) ? "QuagBot, please generate a practice exam for me!" : text
     const content = isRetry
       ? messages
-      : [...messages, { id: crypto.randomUUID(), role: "user", text }];
+      : [...messages, { id: crypto.randomUUID(), role: "user", userMessage  }];
     setActiveChat(id);
     setMessages(content);
     saveConversation(id, content);
@@ -254,7 +256,7 @@ function Home() {
         backendId = conversation.id;
         saveConversation(id, content, backendId);
       }
-      const { reply } = await sendMessage(backendId, text, {
+      let { reply } = await sendMessage(backendId, text, {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
@@ -262,12 +264,22 @@ function Home() {
         throw new Error("Empty response");
       }
 
+      if (isPDF) {
+        let parsedJson = parseMarkdownJson(reply);
+        reply = parsedJson;
+
+        if (!reply.isValid) {
+          reply =
+            "Sorry, I cannot generate a practice exam at this time. The conversation does not have enough content for me to create an exam out of. \n\nTry again after asking me some more questions!";
+          isPDF = false;
+        }
+      }
+
       const completed = [
         ...content,
-        { id: crypto.randomUUID(), role: "quagbot", text: reply },
+        { id: crypto.randomUUID(), role: "quagbot", text: reply, isPDF },
       ];
       setMessages(completed);
-      console.log(messages)
       saveConversation(id, completed, backendId);
     } catch (error) {
       if (!controller.signal.aborted) {

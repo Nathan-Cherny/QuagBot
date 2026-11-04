@@ -5,18 +5,21 @@ import { chatAvatar, chatMessageRow } from '../ui/styles';
 import WelcomeText from './WelcomeText';
 import MarkdownMessage from './MarkdownMessage';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import PDFDocument from './PracticeExamPDF';
+import PDFDocument, { parseMarkdownJson } from './PracticeExamPDF';
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
 const BUBBLE = 'rounded-card px-space-4 py-space-3 text-[0.92rem] leading-[1.45] [overflow-wrap:anywhere]';
 const USER_BUBBLE = `${BUBBLE} whitespace-pre-wrap min-w-0 max-w-[60%] max-[900px]:max-w-[85%] rounded-br-[2px] bg-user-bubble text-accent-contrast`;
-const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text`;
+const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text flex flex-row gap-5 items-center`;
 const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 
 function ChatMessage({ role, text, responseStyle, isPDF, animateWelcome = false }) {
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
+
+  if (text.startsWith("```json")) { isPDF = true; text = parseMarkdownJson(text) }
+  console.log(`${text} ${isUser}`)
 
   if (isUser) return (
     <div className={`${chatMessageRow} justify-end`}>
@@ -49,7 +52,9 @@ function ChatMessage({ role, text, responseStyle, isPDF, animateWelcome = false 
             }
           </PDFDownloadLink>}
 
-          {animateWelcome ? <WelcomeText text={text} /> : <MarkdownMessage text={text} />}
+          {animateWelcome ? <WelcomeText text={text} /> : <div className='flex-col flex'>
+            <MarkdownMessage text={(isPDF) ? text.title : text} />
+          </div>}
         </div>
         {<Buttons text={text} />}
       </div>
