@@ -18,7 +18,7 @@ function ChatMessage({ role, text = "", responseStyle, isPDF, animateWelcome = f
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
 
-  if (text.startsWith("```json")) { isPDF = true; text = parseMarkdownJson(text) }
+  if (typeof text == "object") { isPDF = true; }
 
   if (isUser) return (
     <div className={`${chatMessageRow} justify-end`}>
