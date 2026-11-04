@@ -235,7 +235,7 @@ function Home() {
     const userMessage = (isPDF) ? "QuagBot, please generate a practice exam for me!" : text
     const content = isRetry
       ? messages
-      : [...messages, { id: crypto.randomUUID(), role: "user", userMessage  }];
+      : [...messages, { id: crypto.randomUUID(), role: "user", text: userMessage  }];
     setActiveChat(id);
     setMessages(content);
     saveConversation(id, content);
