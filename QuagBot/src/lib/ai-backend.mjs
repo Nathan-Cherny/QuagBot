@@ -1,8 +1,9 @@
 // Server-side backend adapter. Never accept a user ID or backend URL from the browser.
 export class AIError extends Error {
-  constructor(message, status = 502) {
+  constructor(message, status = 502, retryAfter = null) {
     super(message);
     this.status = status;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -71,6 +72,9 @@ export function parseChatResponse(text, contentType = '') {
 }
 
 export async function callAI(path, { userId, body, signal, timeoutMs = 60000, method = 'POST' }, consume) {
+  if (process.env.AI_MAINTENANCE_MODE === 'true') {
+    throw new AIError('AI chat is temporarily unavailable. You can still view your saved chats and continue with limited capabilities.', 503, 60);
+  }
   const configured = process.env.AI_API_URL || process.env.NEXT_PUBLIC_API_URL;
   let base;
   try {
@@ -97,6 +101,12 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
       await response.body?.cancel();
       if (response.status === 404 && (path === '/chat/stream' || /^\/conversations\/[^/]+\/messages$/.test(path))) {
         throw new AIError('This conversation is no longer available for your account. Any locally saved messages are kept. Start a new chat to continue.', 404);
+      }
+      if (response.status === 429 || response.status === 503) {
+        const raw = response.headers.get('retry-after');
+        const seconds = raw && /^\d+$/.test(raw) ? Number(raw) : Math.ceil((Date.parse(raw) - Date.now()) / 1000);
+        const retryAfter = Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 86400) : 30;
+        throw new AIError(response.status === 429 ? 'Too many requests. Please wait before trying again.' : 'AI chat is temporarily unavailable. Please try again later.', response.status, retryAfter);
       }
       throw new AIError(`The AI service rejected the request (${response.status}). Please try again.`);
     }

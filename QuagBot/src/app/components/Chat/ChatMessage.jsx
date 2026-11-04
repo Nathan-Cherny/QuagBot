@@ -1,27 +1,31 @@
 import UserAvatar from '../User/UserAvatar';
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Download, Watch, WatchIcon } from 'lucide-react';
 import { chatAvatar, chatMessageRow } from '../ui/styles';
 import WelcomeText from './WelcomeText';
 import MarkdownMessage from './MarkdownMessage';
-
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import PDFDocument, { parseMarkdownJson } from './PracticeExamPDF';
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
 const BUBBLE = 'rounded-card px-space-4 py-space-3 text-[0.92rem] leading-[1.45] [overflow-wrap:anywhere]';
 const USER_BUBBLE = `${BUBBLE} whitespace-pre-wrap min-w-0 max-w-[60%] max-[900px]:max-w-[85%] rounded-br-[2px] bg-user-bubble text-accent-contrast`;
-const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text`;
+const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text flex flex-row gap-5 items-center`;
 const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 
-function ChatMessage({ role, text, responseStyle, animateWelcome = false }) {
+function ChatMessage({ role, text, responseStyle, isPDF, animateWelcome = false }) {
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
+
+  if (text.startsWith("```json")) { isPDF = true; text = parseMarkdownJson(text) }
+  console.log(`${text} ${isUser}`)
 
   if (isUser) return (
     <div className={`${chatMessageRow} justify-end`}>
       {!isUser && <img src={BOT_AVATAR_SRC} alt="Bot" className={chatAvatar} />}
 
-      <div className={USER_BUBBLE} style={{fontSize, fontFamily}}>
+      <div className={USER_BUBBLE} style={{ fontSize, fontFamily }}>
         {text}
       </div>
 
@@ -35,7 +39,22 @@ function ChatMessage({ role, text, responseStyle, animateWelcome = false }) {
 
       <div className={BOT_CONTENT}>
         <div className={BOT_BUBBLE} style={responseStyle}>
-          {animateWelcome ? <WelcomeText text={text} /> : <MarkdownMessage text={text} />}
+
+          {isPDF && <PDFDownloadLink
+            className='hover:scale-105 border p-1 bg-white/20 shadow-xl'
+            document={
+              <PDFDocument title={text.title} textContent={text.text} />
+            }
+            fileName={`${text.title}.pdf`}
+          >
+            {({ loading }) =>
+              loading ? <WatchIcon /> : <Download />
+            }
+          </PDFDownloadLink>}
+
+          {animateWelcome ? <WelcomeText text={text} /> : <div className='flex-col flex'>
+            <MarkdownMessage text={(isPDF) ? text.title : text} />
+          </div>}
         </div>
         {<Buttons text={text} />}
       </div>

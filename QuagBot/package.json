@@ -11,6 +11,7 @@
     "test:ai": "node --env-file-if-exists=.env.local tests/smoke-ai.mjs"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "lucide-react": "^1.48.0",

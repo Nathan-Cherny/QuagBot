@@ -10,6 +10,8 @@ async function request(path, { signal, body, method = 'GET' } = {}) {
   if (!response.ok) {
     const error = new Error(data?.error ?? `AI request failed (${response.status}). Please try again.`);
     error.status = response.status;
+    const retryAfter = Number(response.headers.get('retry-after'));
+    error.retryAfter = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30;
     throw error;
   }
   if (!data) throw new Error('The AI service returned an invalid response. Please try again.');
