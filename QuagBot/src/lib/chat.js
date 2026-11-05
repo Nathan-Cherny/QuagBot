@@ -109,6 +109,7 @@ export function getPracticeReply(messages, { outage = false } = {}) {
   }
   return `I focus on the American Revolutionary War. That question is outside my current practice material, so I can’t give a reliable answer to it here.\n\n${HELP}\n\nIf you meant a connection to the Revolution, include the person, event, or topic you want to explore.`;
 }
+
 // Return the reply text and pass signal to fetch so switching chats cancels it.
 export function requestReply(messages, { signal }) {
   return new Promise((resolve, reject) => {

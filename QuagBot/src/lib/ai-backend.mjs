@@ -7,7 +7,7 @@ export class AIError extends Error {
   }
 }
 
-export const MAX_MESSAGE_LENGTH = 10000;
+export const MAX_MESSAGE_LENGTH = 20000;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 
 export async function readResponse(response) {

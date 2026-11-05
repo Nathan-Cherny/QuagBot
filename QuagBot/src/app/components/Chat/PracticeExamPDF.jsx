@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { PILL_BUTTON, FIELD, SELECT, INPUT } from './ChatSettings';
-import { Lightbulb } from 'lucide-react';
 import PDFMarkdown from './PDFMarkdown';
+
+export const MAKE_EXAM_MSG = "QuagBot, please generate a practice exam for me!"
 
 // Create styles similar to React Native StyleSheet
 const styles = StyleSheet.create({
@@ -84,16 +85,20 @@ export function GeneratePracticeExam({ onSend, messages }) {
 
               <label className={FIELD}>
                 # Questions
-                <input defaultValue={questions} className={INPUT} onChange={(event) => setDifficulty(event.target.value)} type='number' min={1} max={20} />
+                <input defaultValue={questions} className={INPUT} onChange={(event) => setQuestions(event.target.value)} type='number' min={1} max={20} />
               </label>
 
               <button type="button" className={`${PILL_BUTTON} bg-blue-200!`} onClick={() => {
                 let messageTotalText = ""
-                messages.forEach(message => messageTotalText += `${message.text}\n\n`)
+                messages.forEach(message => {
+                  if (message.role == "user" && message.text != MAKE_EXAM_MSG) messageTotalText += `${message.text}\n\n`
+                })
 
                 const settingsprompt = `The quiz should be, on a scale from 1-5, a ${difficulty} in difficulty. It should have ${questions} questions. Accepted types of questions are: ${questionTypes.join(",")}.`
                 const basicPrompt = `Generate a short practice exam based on the content of the following conversation. ${settingsprompt} Return as a JSON format - title : String, text : String, isValid : Boolean. If you do not have sufficient information, leave all fields blank except for isValid, which should be false. The questions should not be about the conversation itself; more about the topics discussed in the conversation. Make sure to include an answer key at the end.\n`
                 const finalprompt = `${basicPrompt}\n${messageTotalText}`
+
+                console.log(finalprompt)
 
                 onSend(finalprompt, false, true)
                 setIsOpen(false)

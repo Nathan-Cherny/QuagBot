@@ -11,6 +11,7 @@ import { createConversation, sendMessage } from "../lib/api/chat";
 import { getOutageReply } from "../lib/chat";
 import {
   GeneratePracticeExam,
+  MAKE_EXAM_MSG,
   parseMarkdownJson,
 } from "./components/Chat/PracticeExamPDF";
 import { createClient } from "../lib/supabase/client";
@@ -206,7 +207,7 @@ function Home() {
             id: crypto.randomUUID(),
             role: "user",
             text: isPDF
-              ? "QuagBot, please generate a practice exam for me!"
+              ? MAKE_EXAM_MSG
               : text,
           },
         ];
@@ -266,6 +267,7 @@ function Home() {
             "There is not enough conversation content to create a practice exam yet. Ask a few more questions and try again.";
         }
       }
+
       const completed = [
         ...content,
         { id: crypto.randomUUID(), role: "quagbot", text: reply },

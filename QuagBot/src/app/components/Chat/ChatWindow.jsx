@@ -58,7 +58,7 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
         <NewChatButton onClick={onNewChat} />
       </div>
       <div className="border-b border-border px-space-4 py-space-2 text-xs text-text-muted">
-        AI chat · History is saved in this browser for your account.
+        {/* AI chat · History is saved in this browser for your account. */}
         {maintenance && <p role="status" className="mt-space-2 font-medium">QuagBot is running with limited capabilities while our AI service is temporarily unavailable. You can keep chatting, though some questions may need to wait.</p>}
         {cooldownSeconds > 0 && <p role="status">QuagBot is running with limited capabilities due to a connection issue. You can keep chatting. We’ll try the AI service again on your next message in {cooldownSeconds} seconds.</p>}
         {!ready && <span role="status"> Loading your chats…</span>}
