@@ -100,7 +100,7 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
               Preview: How can QuagBot help you today?
             </p>
             <p>Settings are saved in this browser for your account.</p>
-            <button type="button" className={PILL_BUTTON} disabled={!explanationKey} onClick={resetSettings}>Reset to defaults</button>
+            <button type="button" className={`${PILL_BUTTON} my-5`} disabled={!explanationKey} onClick={resetSettings}>Reset to defaults</button>
             <button type="button" className={PILL_BUTTON} onClick={() => setIsOpen(false)}>Close</button>
           </div>
         </div>
