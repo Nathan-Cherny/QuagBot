@@ -5,6 +5,24 @@ import PDFMarkdown from './PDFMarkdown';
 
 export const MAKE_EXAM_MSG = "QuagBot, please generate a practice exam for me!"
 
+const EXAM_FORMAT_EXAMPLE = JSON.stringify(
+  {
+    title: "Short title for the exam",
+    text: "1. First question?\nA) Option\nB) Option\nC) Option\nD) Option\n\n2. Second question?\n...\n\n## Answer Key\n1. B\n2. ...",
+    isValid: true,
+  },
+  null,
+  2,
+)
+
+const EXAM_FORMAT_INSTRUCTIONS = [
+  "Respond with ONLY a single JSON object inside one ```json code block. Do not write anything before or after the code block.",
+  'The object must have exactly three keys and no others: "title" (string, the exam title), "text" (string, the entire exam written in Markdown: every question numbered in order with its answer choices, followed by an "Answer Key" section at the end), and "isValid" (boolean, true).',
+  'Put the whole exam, including the answer key, inside the single "text" string. Do not add separate keys such as "quiz_title", "questions", or "answer_key".',
+  `Use exactly this shape:\n\`\`\`json\n${EXAM_FORMAT_EXAMPLE}\n\`\`\``,
+  'If you do not have sufficient information to write an exam, respond in the same format with {"title": "", "text": "", "isValid": false}.',
+].join("\n")
+
 // Create styles similar to React Native StyleSheet
 const styles = StyleSheet.create({
   page: {
@@ -94,8 +112,8 @@ export function GeneratePracticeExam({ onSend, messages }) {
                   if (message.role == "user" && message.text != MAKE_EXAM_MSG) messageTotalText += `${message.text}\n\n`
                 })
 
-                const settingsprompt = `The quiz should be, on a scale from 1-5, a ${difficulty} in difficulty. It should have ${questions} questions. Accepted types of questions are: ${questionTypes.join(",")}.`
-                const basicPrompt = `Generate a short practice exam based on the content of the following conversation. ${settingsprompt} Return as a JSON format - title : String, text : String, isValid : Boolean. If you do not have sufficient information, leave all fields blank except for isValid, which should be false. The questions should not be about the conversation itself; more about the topics discussed in the conversation. Make sure to include an answer key at the end.\n`
+                const settingsprompt = `The exam should be, on a scale from 1-5, a ${difficulty} in difficulty. It should have ${questions} questions. Accepted types of questions are: ${questionTypes.join(",")}.`
+                const basicPrompt = `Generate a short practice exam based on the content of the following conversation. ${settingsprompt} The questions should not be about the conversation itself; more about the topics discussed in the conversation.\n\n${EXAM_FORMAT_INSTRUCTIONS}\n`
                 const finalprompt = `${basicPrompt}\n${messageTotalText}`
 
                 console.log(finalprompt)
