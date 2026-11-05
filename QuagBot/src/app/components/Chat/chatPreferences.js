@@ -26,3 +26,15 @@ export function saveExplanationLevel(key, level, storage) {
     // Keep the selection usable when browser storage is unavailable.
   }
 }
+
+const LEVEL_INSTRUCTIONS = {
+  easy: 'Explain at an elementary-school level using simple words, short explanations, and familiar examples. Keep facts and citations accurate.',
+  medium: 'Explain at a high-school level with relevant historical terms, supporting detail, and causes and effects. Keep facts and citations accurate.',
+  max: 'Explain at a college level with deeper analysis, historical context, and competing interpretations where relevant. Keep facts and citations accurate.',
+};
+
+export function prepareMessage(text, level, isPDF = false) {
+  if (isPDF) return text;
+  const instruction = Object.hasOwn(LEVEL_INSTRUCTIONS, level) ? LEVEL_INSTRUCTIONS[level] : LEVEL_INSTRUCTIONS.medium;
+  return instruction + '\n\n' + text;
+}

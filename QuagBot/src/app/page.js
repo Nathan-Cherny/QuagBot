@@ -18,6 +18,8 @@ import { createClient } from "../lib/supabase/client";
 import { browserHistory } from "../lib/browserHistory.mjs";
 import { DEFAULT_PREFERENCES, parsePreferences } from "../lib/chatPreferences";
 
+import { prepareMessage } from "./components/Chat/chatPreferences";
+
 const INITIAL_MESSAGE = {
   id: "welcome",
   role: "quagbot",
@@ -26,6 +28,7 @@ const INITIAL_MESSAGE = {
 
 function Home() {
   const [isLoading, setIsLoading] = useState(false);
+  const [explanationLevel, setExplanationLevel] = useState('medium');
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [textSize, setTextSize] = useState(DEFAULT_PREFERENCES.textSize);
   const [font, setFont] = useState(DEFAULT_PREFERENCES.font);
@@ -198,6 +201,7 @@ function Home() {
       return;
     if (archived || emptyHistory || conversationUnavailable) return;
     text = text.trim();
+    const outgoingText = prepareMessage(text, explanationLevel, isPDF);
     const id = activeChat ?? crypto.randomUUID();
     const content = isRetry
       ? messages
@@ -247,7 +251,7 @@ function Home() {
         backendId = conversation.id;
         saveConversation(id, content, backendId);
       }
-      let { reply } = await sendMessage(backendId, text, {
+      let { reply } = await sendMessage(backendId, outgoingText, {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
@@ -429,6 +433,8 @@ function Home() {
           setFont={setFont}
           fontColor={fontColor}
           setFontColor={setFontColor}
+          explanationLevel={explanationLevel}
+          setExplanationLevel={setExplanationLevel}
         />
         <GeneratePracticeExam onSend={sendTextToBot} messages={messages} />
       </Sidebar>

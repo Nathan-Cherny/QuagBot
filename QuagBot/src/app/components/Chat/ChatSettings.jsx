@@ -8,9 +8,8 @@ export const FIELD = 'my-space-4 flex flex-col gap-space-1 text-left text-black'
 export const SELECT = 'rounded-card border border-border bg-surface p-space-2 text-black [color-scheme:light] [font:inherit]';
 export const INPUT =  'rounded-card border border-border bg-surface p-space-2 text-black [color-scheme:light] [font:inherit]';
 
-function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFontColor }) {
+function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFontColor, explanationLevel, setExplanationLevel }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [explanationLevel, setExplanationLevel] = useState('medium');
   const [explanationKey, setExplanationKey] = useState(null);
 
   useEffect(() => {
@@ -30,7 +29,7 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
       Promise.resolve().then(() => restore(null));
     }
     return () => { disposed = true; unsubscribe(); };
-  }, []);
+  }, [setExplanationLevel]);
 
   useEffect(() => {
     if (explanationKey) saveExplanationLevel(explanationKey, explanationLevel);
