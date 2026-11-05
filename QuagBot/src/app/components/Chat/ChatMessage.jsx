@@ -17,9 +17,9 @@ const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 function ChatMessage({ role, text = "", responseStyle, isPDF, animateWelcome = false }) {
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
-
-  if (typeof text == "object") { isPDF = true; }
-
+  
+  if (text.startsWith("```json")) { text = parseMarkdownJson(text); isPDF = true }
+  
   if (isUser) return (
     <div className={`${chatMessageRow} justify-end`}>
       {!isUser && <img src={BOT_AVATAR_SRC} alt="Bot" className={chatAvatar} />}
