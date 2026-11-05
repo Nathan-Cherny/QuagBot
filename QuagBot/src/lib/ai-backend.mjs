@@ -262,3 +262,19 @@ export async function listAIMessages({ userId, conversationId, signal }) {
     created_at,
   }));
 }
+
+export async function deleteAIConversation({
+  userId,
+  conversationId,
+  signal,
+}) {
+  await callAI(
+    `/conversations/${encodeURIComponent(conversationId)}`,
+    {
+      userId,
+      signal,
+      method: 'DELETE',
+    },
+    async () => null,
+  );
+}

@@ -39,3 +39,9 @@ export async function listMessages(conversationId, options) {
   if (!Array.isArray(data)) throw new Error('Messages could not be loaded.');
   return data;
 }
+
+export async function deleteConversation(conversationId, options) {
+  const data = await request(`/api/conversations`, {...options, method:'DELETE', body: { conversationId }})
+  if (/*typeof data?.deleted !== true*/ false) throw new Error("Conversation could not be deleted.");
+  return data
+}

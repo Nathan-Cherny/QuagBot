@@ -10,3 +10,4 @@ export const GET = authenticatedRoute(async (request, _body, userId, context) =>
   const messages = await listAIMessages({ userId, conversationId, signal: request.signal });
   return NextResponse.json(messages, { headers: { 'Cache-Control': 'private, no-store' } });
 });
+
