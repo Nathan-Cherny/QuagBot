@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createClient } from '../../../lib/supabase/client';
+import { EXPLANATION_LEVELS, LEVEL_DESCRIPTIONS, loadExplanationLevel, saveExplanationLevel } from './chatPreferences';
 
 export const PILL_BUTTON = 'cursor-pointer rounded-full border border-black bg-surface px-space-4 py-space-2 w-full hover:scale-105';
 export const FIELD = 'my-space-4 flex flex-col gap-space-1 text-left text-black';
@@ -8,6 +10,38 @@ export const INPUT =  'rounded-card border border-border bg-surface p-space-2 te
 
 function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFontColor }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [explanationLevel, setExplanationLevel] = useState('medium');
+  const [explanationKey, setExplanationKey] = useState(null);
+
+  useEffect(() => {
+    let disposed = false;
+    function restore(user) {
+      if (disposed) return;
+      const key = 'quagbot:chats:v1:' + (user?.id ?? 'guest') + ':explanation-level';
+      setExplanationLevel(loadExplanationLevel(key));
+      setExplanationKey(key);
+    }
+    let unsubscribe = () => {};
+    try {
+      const client = createClient();
+      const { data } = client.auth.onAuthStateChange((_event, session) => restore(session?.user));
+      unsubscribe = () => data.subscription.unsubscribe();
+    } catch {
+      Promise.resolve().then(() => restore(null));
+    }
+    return () => { disposed = true; unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    if (explanationKey) saveExplanationLevel(explanationKey, explanationLevel);
+  }, [explanationKey, explanationLevel]);
+
+  function resetSettings() {
+    setTextSize('18px');
+    setFont('Arial, sans-serif');
+    setFontColor('#000000');
+    setExplanationLevel('medium');
+  }
 
   return (
     <div className="w-full">
@@ -18,6 +52,13 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/30">
           <div className="max-h-[90vh] w-[350px] max-w-[90%] overflow-y-auto rounded-[12px] bg-surface p-space-5">
             <h2 className="mb-space-2 text-[24px] leading-[118%] font-medium tracking-[-0.24px] text-black max-[1024px]:text-[20px]">Chat Settings</h2>
+            <label className={FIELD}>
+              Explanation level
+              <select className={SELECT} value={explanationLevel} disabled={!explanationKey} aria-describedby="explanation-help" onChange={(event) => setExplanationLevel(event.target.value)}>
+                {Object.entries(EXPLANATION_LEVELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <p id="explanation-help">{LEVEL_DESCRIPTIONS[explanationLevel]}</p>
             <label className={FIELD}>
               Text size
               <select className={SELECT} value={textSize} onChange={(event) => setTextSize(event.target.value)}>
@@ -59,6 +100,8 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
             <p className="my-space-4 rounded-card bg-main-chat-bg p-space-3 leading-[1.5] [overflow-wrap:anywhere]" style={{ fontSize: textSize, fontFamily: font, color: fontColor }}>
               Preview: How can QuagBot help you today?
             </p>
+            <p>Settings are saved in this browser for your account.</p>
+            <button type="button" className={PILL_BUTTON} disabled={!explanationKey} onClick={resetSettings}>Reset to defaults</button>
             <button type="button" className={PILL_BUTTON} onClick={() => setIsOpen(false)}>Close</button>
           </div>
         </div>
