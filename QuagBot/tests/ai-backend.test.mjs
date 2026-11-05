@@ -64,9 +64,12 @@ test('local HTTP integration: forwards identity and conversation, handles retrie
     server.closeAllConnections(); server.close();
   });
   const options = { userId: 'verified-supabase-user', body: { title: 'Washington' } };
-  await assert.rejects(callAI('/conversations', options, readResponse), /503/);
+  await assert.rejects(callAI('/conversations', options, readResponse), (error) => error.status === 503 && error.retryAfter === 30);
   const conversation = await createAIConversation({ userId: options.userId, title: 'Washington' });
   assert.equal(conversation.id, 'backend-conversation-1');
+  assert.deepEqual(requests.filter((request) => request.path === '/conversations').at(-1).body, {
+    title: 'Washington', domain: 'education',
+  });
   const chatOptions = { ...options, body: { conversation_id: conversation.id, message: 'Who was Washington?' } };
   for (const message of ['Who was Washington?', 'Tell me more']) {
     const reply = await callAI('/chat/stream', { ...chatOptions, body: { ...chatOptions.body, message } }, async (res) => parseChatResponse(await readResponse(res), res.headers.get('content-type')));
@@ -123,4 +126,28 @@ test('missing backend configuration fails explicitly', async () => {
       if (previous[index] === undefined) delete process.env[key]; else process.env[key] = previous[index];
     }
   }
+});
+
+
+test('maintenance prevents any outgoing backend request', async (t) => {
+  const previous = process.env.AI_MAINTENANCE_MODE;
+  process.env.AI_MAINTENANCE_MODE = 'true';
+  t.after(() => {
+    if (previous === undefined) delete process.env.AI_MAINTENANCE_MODE;
+    else process.env.AI_MAINTENANCE_MODE = previous;
+  });
+  const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('Must not contact AI'); });
+  await assert.rejects(callAI('/chat/stream', { userId: 'user', body: {} }, readResponse), (error) => error.status === 503);
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('rate limits preserve status and Retry-After', async (t) => {
+  const previous = process.env.AI_API_URL;
+  process.env.AI_API_URL = 'https://example.test';
+  t.after(() => {
+    if (previous === undefined) delete process.env.AI_API_URL;
+    else process.env.AI_API_URL = previous;
+  });
+  t.mock.method(globalThis, 'fetch', async () => new Response('', { status: 429, headers: { 'Retry-After': '90' } }));
+  await assert.rejects(callAI('/chat/stream', { userId: 'user', body: {} }, readResponse), (error) => error.status === 429 && error.retryAfter === 90);
 });
