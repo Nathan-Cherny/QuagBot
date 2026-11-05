@@ -147,6 +147,43 @@ function Home() {
             const existing = previous.find((item) => item.id === id);
             const chat = { ...existing, backendConversationId: backendConversationId ?? existing?.backendConversationId ?? null, id, title: existing?.renamed ? existing.title : title, content, updatedAt: Date.now() };
             return [chat, ...previous.filter((item) => item.id !== id)];
+  async function sendTextToBot(text, isRetry = false, isPDF = false) {
+    if (
+      !storageKey ||
+      pendingReply.current ||
+      typeof text !== "string" ||
+      !text.trim()
+    )
+      return;
+    if (
+      archived ||
+      isRestoring ||
+      loadError ||
+      remotePending ||
+      conversationUnavailable
+    )
+      return;
+    text = text.trim();
+    const id = activeChat ?? crypto.randomUUID();
+    const userMessage = (isPDF) ? "QuagBot, please generate a practice exam for me!" : text
+    const content = isRetry
+      ? messages
+      : [...messages, { id: crypto.randomUUID(), role: "user", text: userMessage  }];
+    setActiveChat(id);
+    setMessages(content);
+    saveConversation(id, content);
+    const controller = new AbortController();
+    pendingReply.current = controller;
+    setFailedQuestion(null);
+    setRequestError(null);
+    setIsLoading(true);
+    try {
+      let backendId = chats.find(
+        (chat) => chat.id === id,
+      )?.backendConversationId;
+      if (!backendId) {
+        const conversation = await createConversation(text.slice(0, 80), {
+          signal: controller.signal,
         });
     }
 
