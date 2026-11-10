@@ -4,6 +4,7 @@ import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import SuggestedQuestions from './SuggestedQuestions';
 import NewChatButton from './NewChatButton';
+import ChatExport from './ChatExport';
 import { chatAvatar, chatMessageRow } from '../ui/styles';
 
 const TYPING_DOT = 'size-[6px] animate-typing-bounce rounded-full bg-text-muted';
@@ -50,8 +51,9 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
 
   return (
     <div data-chat-window className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-main-chat-bg">
-      <div className="min-w-0 border-b border-border bg-surface px-space-4 py-space-3">
-        <h1 title={title} className="truncate text-base font-semibold text-text">{title}</h1>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-space-3 border-b border-border bg-surface px-space-4 py-space-3">
+        <h1 title={title} className="min-w-0 flex-1 truncate text-base font-semibold text-text">{title}</h1>
+        <ChatExport key={title + ':' + (messages[0]?.id ?? '')} title={title} messages={messages} disabled={!ready || isLoading} />
       </div>
       <div className="hidden justify-center border-b border-border bg-surface px-space-4 py-space-2 max-[900px]:flex">
         <button type="button" onClick={onOpenHistory} className="mr-space-3 cursor-pointer rounded-card border border-border px-space-3 py-space-2 text-sm hover:bg-navbar-bg">History</button>
