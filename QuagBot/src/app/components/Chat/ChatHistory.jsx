@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Pencil, Search, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Search, Trash2, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { sidebarTitle } from '../ui/styles';
 import NewChatButton from './NewChatButton';
 import { groupHistory } from '../../../lib/historyGroups';
@@ -10,6 +10,8 @@ function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat,
   const [query, setQuery] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [title, setTitle] = useState('');
+  const [ascending, setAscending] = useState(true)
+
   const filtered = useMemo(() => {
     const search = query.trim().toLocaleLowerCase();
     return chats.filter((chat) => !search || chat.title.toLocaleLowerCase().includes(search) || chat.content.some((message) => message.text.toLocaleLowerCase().includes(search)));
@@ -34,15 +36,19 @@ function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat,
         <Search size={15} aria-hidden="true" className="shrink-0 text-text-muted" />
         <input type="search" aria-label="Search conversation titles and saved messages" placeholder="Search chats…" value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent py-space-2 text-sm text-text outline-none" />
       </div>
+      <div className="mb-space-3 flex text-sm justify-around flex-row items-center gap-space-1 rounded-card border border-border bg-surface px-space-2 focus-within:border-important-border">
+        <button className={`${(ascending) ? "text-black" : "text-gray-500"} cursor-pointer flex flex-row items-center gap-2`} onClick={() => setAscending(true)}>Ascending <ArrowUp size={16}/></button>
+        <button className={`${(!ascending) ? "text-black" : "text-gray-500"} cursor-pointer flex flex-row items-center gap-2`} onClick={() => setAscending(false)}>Descending <ArrowDown size={16}/></button>
+      </div>
       <p className="mb-space-3 text-xs text-text-muted">Saved in this browser for your account. Renaming and deleting affect this browser only.</p>
       {loading && <p role="status" className="mb-space-2 text-xs text-text-muted">Loading saved conversations…</p>}
       {!loading && chats.length === 0 && <p className="text-sm text-text-muted">Your conversations will appear here after your first message.</p>}
       {query.trim() && <p role="status" className="mb-space-2 text-xs text-text-muted">{filtered.length ? `${filtered.length} conversation${filtered.length === 1 ? '' : 's'} found` : 'No conversations match your search.'}</p>}
-      {groupHistory(filtered).map(([label, items]) => (
+      {((ascending) ? groupHistory(filtered) : groupHistory(filtered).reverse()).map(([label, items]) => (
         <section key={label} aria-label={`${label}'s conversations`} className="mb-space-4">
           <h3 className="mb-space-1 px-space-2 text-xs font-semibold text-text-muted">{label}</h3>
           <ul className="flex flex-col gap-space-1">
-        {items.map((chat) => (
+        {((ascending) ? items : items.reverse()).map((chat) => (
           <li key={chat.id} className={`rounded-card ${chat.id === activeChat ? 'bg-navbar-bg' : 'hover:bg-bg'}`}>
             {editingId === chat.id ? (
               <form onSubmit={(event) => saveTitle(event, chat.id)} className="p-space-2" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setEditingId(null); } }}>
