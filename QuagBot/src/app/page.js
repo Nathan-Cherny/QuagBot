@@ -260,10 +260,12 @@ function Home() {
       }
       if (isPDF) {
         const exam = parseMarkdownJson(reply);
+        console.log(exam)
         if (
-          exam.isValid &&
+          (
+          // exam.isValid &&
           typeof exam.title === "string" &&
-          typeof exam.text === "string"
+          typeof exam.text === "string")
         ) {
           reply = "```json\n" + JSON.stringify(exam) + "\n```";
         } else {
