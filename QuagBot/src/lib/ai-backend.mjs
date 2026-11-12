@@ -285,7 +285,7 @@ export async function deleteAIConversation({
 
 export async function shareConversation({ userId, conversationId, signal }){
   const records = await callAI(
-    "/conversations",
+    `/shared/${encodeURIComponent(conversationId)}`,
     { userId, signal, method: "GET" },
     readJSONResponse,
   );
