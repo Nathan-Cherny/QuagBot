@@ -5,6 +5,9 @@ import { NextResponse } from "next/server";
 const PUBLIC_PATHS = ["/login", "/signup", "/about"];
 
 export async function updateSession(request) {
+  // The snapshot is decoded entirely in the browser; no account or AI service is needed.
+  if (request.nextUrl.pathname === '/share') return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

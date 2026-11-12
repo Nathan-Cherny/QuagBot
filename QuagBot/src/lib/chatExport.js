@@ -2,7 +2,7 @@ export function exportableMessages(messages) {
   return messages.filter(({ id, role }) => id !== 'welcome' && ['user', 'assistant', 'quagbot'].includes(role));
 }
 
-function messageText(text) {
+export function messageText(text) {
   if (typeof text === 'string') {
     if (!text.startsWith('```json')) return text;
     try {

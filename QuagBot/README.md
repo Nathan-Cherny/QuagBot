@@ -106,3 +106,28 @@ visible user question, but cannot guarantee exactly-once backend processing.
 Set `AI_MAINTENANCE_MODE=true` in the server environment and restart/redeploy to pause outgoing AI calls. The chat shows a maintenance notice; browser history remains accessible and chat uses local backup answers with a limited-capabilities notice. Questions beyond the prepared material receive an outage notice. Set it to `false` and restart/redeploy to restore chat. Open tabs check the maintenance setting every 30 seconds and automatically resume AI requests once maintenance is disabled and any cooldown has expired. The status endpoint only reads configuration and does not call the AI backend.
 
 Failed service requests fall back to prepared answers and trigger a 30-second cooldown on AI requests across chats, extended by upstream `Retry-After` for 429/503 responses (up to 24 hours). There are no automatic AI retries. This cooldown is a UX safeguard, not an enforceable usage quota; server-side rate limits and cloud cost controls are still needed. Prepared answers require the frontend to be reachable; this does not add full offline/PWA support.
+
+### Public chat links
+
+Share creates a read-only snapshot of the current browser-stored conversation.
+Recipients open `/share#<encoded-snapshot>` without an account or AI service.
+The public viewer bypasses Supabase session lookup and makes no backend requests.
+Only the title and displayed conversation messages are included, not account IDs,
+conversation IDs, credentials, or the welcome message. Text export remains available.
+
+The snapshot is encoded in the URL fragment (not encrypted). Anyone with the link
+can read, forward, or modify their copy. It cannot be revoked or updated after
+sharing. The fragment is not sent in the HTTP request to QuagBot. The viewer does
+not store the snapshot in browser history storage, and raw HTML is not rendered.
+Sharing may appear in the recipient's normal browser URL history.
+
+Links are limited to 24,000 fragment characters / 18,000 serialized UTF-8 bytes;
+oversized conversations show an error suggesting Export. Messaging apps may
+impose shorter URL limits. localhost links only work where that host is reachable;
+use the deployed QuagBot site to share with other devices.
+
+Verify by opening a shared link in a signed-out browser, checking that it renders
+without AI requests, and checking that later edits to the original do not change
+the snapshot. Invalid and truncated links should show a clear error. Hosted short
+links, expiration, revocation, and recipient permissions can be added with database
+storage later; they are not provided by this browser-only implementation.
