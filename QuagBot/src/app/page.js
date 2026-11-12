@@ -406,6 +406,9 @@ function Home() {
         title={
           chats.find((chat) => chat.id === activeChat)?.title ?? "New chat"
         }
+        date={
+          chats.find((chat) => chat.id === activeChat)?.updatedAt ?? ""
+        }
         isLoading={isLoading}
         error={
           !archived && failedQuestion
