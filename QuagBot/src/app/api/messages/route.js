@@ -3,6 +3,7 @@ import { authenticatedRoute } from '@/lib/ai-route';
 import { AIError, callAI, MAX_MESSAGE_LENGTH, parseChatResponse, readResponse } from '@/lib/ai-backend.mjs';
 
 export const POST = authenticatedRoute(async (request, body, userId) => {
+  console.log(`CONSOLE LOG TEST\n\nconversationId: ${body.conversationId}\nuserId: ${userId}}`)
   if (typeof body.conversationId !== 'string' || !body.conversationId.trim() || body.conversationId.length > 200) {
     throw new AIError('A valid conversation ID is required.', 400);
   }

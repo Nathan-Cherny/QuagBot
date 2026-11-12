@@ -47,3 +47,10 @@ export async function deleteConversation(conversationId, options) {
   if (/*typeof data?.deleted !== true*/ false) throw new Error("Conversation could not be deleted.");
   return data
 }
+
+export async function shareConversation(conversationId, options){
+  const data = await request(`/api/conversations/${encodeURIComponent(conversationId)}/share`, {
+    ...options
+  })
+  return data
+}

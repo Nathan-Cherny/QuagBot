@@ -282,3 +282,13 @@ export async function deleteAIConversation({
     async () => null,
   );
 }
+
+export async function shareConversation({ userId, conversationId, signal }){
+  const records = await callAI(
+    "/conversations",
+    { userId, signal, method: "GET" },
+    readJSONResponse,
+  );
+
+  console.log(records)
+}

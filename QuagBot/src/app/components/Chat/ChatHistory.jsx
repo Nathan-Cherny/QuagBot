@@ -3,6 +3,7 @@ import { Check, Pencil, Search, Trash2, SquareArrowOutUpLeftIcon, X, ArrowUp, Ar
 import { sidebarTitle } from '../ui/styles';
 import NewChatButton from './NewChatButton';
 import { groupHistory } from '../../../lib/historyGroups';
+import { shareConversation } from '@/lib/api/chat';
 
 const actionStyle = 'shrink-0 cursor-pointer rounded-card p-space-2 text-text-muted hover:bg-navbar-bg hover:text-text focus-visible:outline-2 focus-visible:outline-important-border';
 
@@ -63,7 +64,7 @@ function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat,
                 <button type="button" title={chat.title} aria-current={chat.id === activeChat ? 'true' : undefined} onClick={() => onSelectChat(chat)} className="min-w-0 flex-1 cursor-pointer truncate rounded-card px-space-2 py-space-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-important-border">
                   {chat.title}
                 </button>
-                <button type="button" onClick={()=> {console.log('test')}} title="Create shareable link" className={`${actionStyle} hover:bg-danger-bg hover:text-danger`} ><SquareArrowOutUpLeftIcon size={15} aria-hidden="true" /></button>
+                <button type="button" onClick={()=> {shareConversation(chat.id)}} title="Create shareable link" className={`${actionStyle} hover:bg-danger-bg hover:text-danger`} ><SquareArrowOutUpLeftIcon size={15} aria-hidden="true" /></button>
                 <button type="button" onClick={() => { setEditingId(chat.id); setTitle(chat.title); }} title="Rename in this browser" aria-label={`Rename conversation in this browser: ${chat.title}`} className={actionStyle}><Pencil size={15} aria-hidden="true" /></button>
                 <button type="button" onClick={() => onDeleteChat(chat.id)} title="Delete local chat" aria-label={`Delete conversation: ${chat.title}`} className={`${actionStyle} hover:bg-danger-bg hover:text-danger`}><Trash2 size={15} aria-hidden="true" /></button>
               </div>
