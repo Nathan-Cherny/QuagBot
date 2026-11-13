@@ -86,9 +86,17 @@ export function parseChatResponse(text, contentType = "") {
   return completed;
 }
 
-export async function callAI(path, { userId, body, signal, timeoutMs = 60000, method = 'POST' }, consume) {
-  if (process.env.AI_MAINTENANCE_MODE === 'true') {
-    throw new AIError('AI chat is temporarily unavailable. You can still view your saved chats and continue with limited capabilities.', 503, 60);
+export async function callAI(
+  path,
+  { userId, body, signal, timeoutMs = 60000, method = "POST" },
+  consume,
+) {
+  if (process.env.AI_MAINTENANCE_MODE === "true") {
+    throw new AIError(
+      "AI chat is temporarily unavailable. You can still view your saved chats and continue with limited capabilities.",
+      503,
+      60,
+    );
   }
   const configured = process.env.AI_API_URL || process.env.NEXT_PUBLIC_API_URL;
   let base;
@@ -127,9 +135,11 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
       cache: "no-store",
     });
     if (!response.ok) {
-
       console.log(
-        `${base.href.replace(/\/$/, "")}${path} \n ${JSON.stringify(body)} ${method}`,
+        `\nSomething went wrong with ${method} request to ${base.href.replace(/\/$/, "")}${path}
+        body: ${JSON.stringify(body)}
+        response: ${JSON.stringify(response)}
+        `,
       );
       await response.body?.cancel();
       if (
@@ -143,12 +153,26 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
         );
       }
       if (response.status === 429 || response.status === 503) {
-        const raw = response.headers.get('retry-after');
-        const seconds = raw && /^\d+$/.test(raw) ? Number(raw) : Math.ceil((Date.parse(raw) - Date.now()) / 1000);
-        const retryAfter = Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 86400) : 30;
-        throw new AIError(response.status === 429 ? 'Too many requests. Please wait before trying again.' : 'AI chat is temporarily unavailable. Please try again later.', response.status, retryAfter);
+        const raw = response.headers.get("retry-after");
+        const seconds =
+          raw && /^\d+$/.test(raw)
+            ? Number(raw)
+            : Math.ceil((Date.parse(raw) - Date.now()) / 1000);
+        const retryAfter =
+          Number.isFinite(seconds) && seconds > 0
+            ? Math.min(seconds, 86400)
+            : 30;
+        throw new AIError(
+          response.status === 429
+            ? "Too many requests. Please wait before trying again."
+            : "AI chat is temporarily unavailable. Please try again later.",
+          response.status,
+          retryAfter,
+        );
       }
-      throw new AIError(`The AI service rejected the request (${response.status}). Please try again.`);
+      throw new AIError(
+        `The AI service rejected the request (${response.status}). Please try again.`,
+      );
     }
 
     return await consume(response);
@@ -267,28 +291,30 @@ export async function listAIMessages({ userId, conversationId, signal }) {
   }));
 }
 
-export async function deleteAIConversation({
-  userId,
-  conversationId,
-  signal,
-}) {
+export async function deleteAIConversation({ userId, conversationId, signal }) {
   await callAI(
     `/conversations/${encodeURIComponent(conversationId)}`,
     {
       userId,
       signal,
-      method: 'DELETE',
+      method: "DELETE",
     },
     async () => null,
   );
 }
 
-export async function shareConversation({ userId, conversationId, signal }){
+export async function shareConversation({ userId, conversationId, signal }) {
+  console.log(`conversationId: ${conversationId}\n\nuserId: ${userId}`);
+
+  const body = {
+    user_ids: ["!i8f)L|Xy]L&/!cv?)=0?yTqk:0Z!#0$-MOqP#s0iGd/y"],
+  };
+
   const records = await callAI(
     `/shared/${encodeURIComponent(conversationId)}`,
-    { userId, signal, method: "GET" },
+    { userId, signal, method: "POST", body },
     readJSONResponse,
   );
 
-  console.log(records)
+  console.log(records);
 }
