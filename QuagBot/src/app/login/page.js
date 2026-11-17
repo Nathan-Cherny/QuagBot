@@ -36,12 +36,18 @@ function LogIn() {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       setError(error.message);
       return;
     }
-    router.push("/");
+
+    // Users with MFA turned on go to the code prompt first. (The server enforces
+    // this too; this just skips an extra redirect.)
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    setSubmitting(false);
+    const needsCode = aal?.nextLevel === "aal2" && aal?.currentLevel !== "aal2";
+    router.push(needsCode ? "/mfa" : "/");
     router.refresh(); // re-run server code so it sees the new session cookie
   }
 

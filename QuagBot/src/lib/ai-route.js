@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { needsMfa } from '@/lib/supabase/mfa';
 import { AIError } from './ai-backend.mjs';
 
 export function authenticatedRoute(handler) {
@@ -9,6 +10,10 @@ export function authenticatedRoute(handler) {
       const { data, error } = await supabase.auth.getClaims();
       const userId = data?.claims?.sub;
       if (error || !userId) return NextResponse.json({ error: 'Please sign in again to use AI chat.' }, { status: 401 });
+      // Checked here as well as in proxy.js so a route stays protected if the proxy matcher changes.
+      if (await needsMfa(supabase, data.claims)) {
+        return NextResponse.json({ error: 'Enter your two-factor code to continue.', mfaRequired: true }, { status: 401 });
+      }
       let body = {};
       if (request.method !== 'GET') {
         try { body = await request.json(); }

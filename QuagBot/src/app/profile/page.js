@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlugZap } from "lucide-react";
 import LogOutButton from "../components/Layout/Elements/LogOutButton";
+import MfaSettings from "../components/User/MfaSettings";
 
 import PageWrapper from "../components/Layout/PageWrapper";
 import {
@@ -76,6 +77,8 @@ function Profile() {
             </span>
           </div>
         </div>
+
+        <MfaSettings />
 
         <div className={buttonStack}>
           <LogOutButton handleLogout={handleLogout}/>

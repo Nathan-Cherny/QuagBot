@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { needsMfa } from "./mfa";
 
 // Pages anyone can see without logging in.
 const PUBLIC_PATHS = ["/login", "/signup", "/about"];
@@ -46,12 +47,37 @@ export async function updateSession(request) {
     return NextResponse.redirect(url);
   }
 
-  if (user && (path === "/login" || path === "/signup")) {
+  // Logged in with password but MFA code not entered yet: only /mfa is allowed.
+  const mfaPending = await needsMfa(supabase, user);
+
+  if (mfaPending && path.startsWith("/api/")) {
+    const unauthorized = NextResponse.json(
+      { error: "Enter your two-factor code to continue.", mfaRequired: true },
+      { status: 401 }
+    );
+    response.cookies.getAll().forEach((cookie) => unauthorized.cookies.set(cookie));
+    return unauthorized;
+  }
+
+  if (mfaPending && path !== "/mfa") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/mfa";
+    return redirectWithCookies(url, response);
+  }
+
+  if (user && !mfaPending && (path === "/login" || path === "/signup" || path === "/mfa")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
-    return NextResponse.redirect(url);
+    return redirectWithCookies(url, response);
   }
 
   // Must return this exact response so refreshed auth cookies reach the browser.
   return response;
+}
+
+// Redirects must carry any refreshed auth cookies too, or the user gets logged out.
+function redirectWithCookies(url, response) {
+  const redirect = NextResponse.redirect(url);
+  response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  return redirect;
 }
