@@ -91,7 +91,7 @@ function ChatInput({ onSend, disabled }) {
 
     const today = new Date().toISOString().split('T')[0];
     const lastMessageDate = profile.last_message_at;
-    const remainingMessages = profile.remaining_messages;
+    let remainingMessages = profile.remaining_messages;
 
     // If it's a new day, reset the count (PLACEHOLDER NUMBER)
     const DAILY_LIMIT = 50; 
@@ -107,7 +107,7 @@ function ChatInput({ onSend, disabled }) {
       // Decrease the counter in the database
       await supabase
         .from('profiles')
-        .update({ "remaining_messages": remainingMessages - 1 })
+        .update({ remaining_messages: remainingMessages - 1 , last_message_at: today})
         .eq('id', user.id)
         .single()
       return true;
