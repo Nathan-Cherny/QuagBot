@@ -25,8 +25,6 @@ function ChatInput({ onSend, disabled }) {
   const textareaRef = useRef(null);
   const draftValue = appendTranscript(value, interimTranscript).slice(0, 10000);
 
-
-  const[Limit, setLimit] = useState(true);
   const supabase = createClient();
 
   useEffect(() => () => {
@@ -82,7 +80,7 @@ function ChatInput({ onSend, disabled }) {
     
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("remaining_messages")
+      .select("remaining_messages, last_message_at")
       .eq('id', user.id)
       .single()
 
@@ -91,12 +89,19 @@ function ChatInput({ onSend, disabled }) {
       return;
     }
 
+    const today = new Date().toISOString().split('T')[0];
+    const lastMessageDate = profile.last_message_at;
     const remainingMessages = profile.remaining_messages;
+
+    // If it's a new day, reset the count (PLACEHOLDER NUMBER)
+    const DAILY_LIMIT = 50; 
+    if (lastMessageDate !== today) {
+      remainingMessages = DAILY_LIMIT;
+    }
     
     if (remainingMessages == 0) {
       //Lock message button if count is at 0 -> Potentially changing this feature
-      setLimit(false);
-      console.log("Counter at 0");
+      return false
     }
     else {
       // Decrease the counter in the database
@@ -105,12 +110,11 @@ function ChatInput({ onSend, disabled }) {
         .update({ "remaining_messages": remainingMessages - 1 })
         .eq('id', user.id)
         .single()
-      setLimit(true);
-      console.log("Decreasing Counter");
+      return true;
     }
   }
 
-  function submit(Limit) {
+  function submit(canSend) {
     const trimmed = draftValue.trim();
     if (!trimmed || disabled) return;
 
@@ -129,7 +133,7 @@ function ChatInput({ onSend, disabled }) {
       setIsListening(false);
       setSpeechStatus('Dictation stopped because your message was sent.');
     }
-    if (Limit) {
+    if (canSend) {
       onSend(trimmed, false);
       setValue('');
       setInterimTranscript('');
@@ -140,10 +144,11 @@ function ChatInput({ onSend, disabled }) {
     }
   }
 
-  function handleKeyDown(event) {
+  async function handleKeyDown(event) {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      submit();
+      const canSend = await handleLimitClick();
+      submit(canSend);
     }
   }
 
@@ -304,8 +309,8 @@ function ChatInput({ onSend, disabled }) {
         type="button"
         className="cursor-pointer rounded-card border-none bg-accent px-space-4 py-space-2 text-[0.9rem] font-medium text-accent-contrast enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={async () => {
-          handleLimitClick();
-          submit();
+          const canSend = await handleLimitClick();
+    submit(canSend);
         }}
         disabled={disabled || !draftValue.trim()}
       >
