@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Mic, MicOff } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 function appendTranscript(current, transcript) {
   if (!transcript) return current;
@@ -23,6 +24,10 @@ function ChatInput({ onSend, disabled }) {
 
   const textareaRef = useRef(null);
   const draftValue = appendTranscript(value, interimTranscript).slice(0, 10000);
+
+
+  const[Limit, setLimit] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => () => {
     wantsListeningRef.current = false;
@@ -70,7 +75,42 @@ function ChatInput({ onSend, disabled }) {
     return () => observer.disconnect();
   }, [draftValue]);
 
-  function submit() {
+  async function handleLimitClick() {
+    //const now = new Date();
+    //const currentDay = now.getDate();
+    const {data: {user}} = await supabase.auth.getUser();
+    
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("remaining_messages")
+      .eq('id', user.id)
+      .single()
+
+    if (error || !profile) {
+      console.error("Something Went Wrong - Profile not found", error);
+      return;
+    }
+
+    const remainingMessages = profile.remaining_messages;
+    
+    if (remainingMessages == 0) {
+      //Lock message button if count is at 0 -> Potentially changing this feature
+      setLimit(false);
+      console.log("Counter at 0");
+    }
+    else {
+      // Decrease the counter in the database
+      await supabase
+        .from('profiles')
+        .update({ "remaining_messages": remainingMessages - 1 })
+        .eq('id', user.id)
+        .single()
+      setLimit(true);
+      console.log("Decreasing Counter");
+    }
+  }
+
+  function submit(Limit) {
     const trimmed = draftValue.trim();
     if (!trimmed || disabled) return;
 
@@ -89,11 +129,15 @@ function ChatInput({ onSend, disabled }) {
       setIsListening(false);
       setSpeechStatus('Dictation stopped because your message was sent.');
     }
-    
-    onSend(trimmed, false);
-    setValue('');
-    setInterimTranscript('');
-    interimTranscriptRef.current = '';
+    if (Limit) {
+      onSend(trimmed, false);
+      setValue('');
+      setInterimTranscript('');
+      interimTranscriptRef.current = '';
+    }
+    else {
+      //Display Message that count ran out or a warning saying that you have run out
+    }
   }
 
   function handleKeyDown(event) {
@@ -259,7 +303,10 @@ function ChatInput({ onSend, disabled }) {
       <button
         type="button"
         className="cursor-pointer rounded-card border-none bg-accent px-space-4 py-space-2 text-[0.9rem] font-medium text-accent-contrast enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
-        onClick={submit}
+        onClick={async () => {
+          handleLimitClick();
+          submit();
+        }}
         disabled={disabled || !draftValue.trim()}
       >
         Send
