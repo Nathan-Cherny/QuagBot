@@ -10,6 +10,7 @@ function appendTranscript(current, transcript) {
 
 function ChatInput({ onSend, disabled }) {
   const [value, setValue] = useState('');
+  const [userPDFOpen, setUserPDFOpen] = useState(false)
   const [interimTranscript, setInterimTranscript] = useState('');
 
   // States to track if speech recognition is active
@@ -220,8 +221,8 @@ function ChatInput({ onSend, disabled }) {
   return (
     <div className="border-t border-border bg-surface p-space-4">
       <div className="flex items-center gap-space-2">
-        <UploadPDFButton/>
-        <UploadPDFDialog/>
+        <UploadPDFButton setUserPDFOpen={setUserPDFOpen}/>
+        <UploadPDFDialog setUserPDFOpen={setUserPDFOpen} userPDFOpen={userPDFOpen}/>
         <textarea
           ref={textareaRef}
           aria-label="Chat message"
