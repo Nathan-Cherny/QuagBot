@@ -1,5 +1,4 @@
-// The UI uses this browser-only history store. The AI history API adapter remains
-// separate so server synchronization can be reintroduced without changing chat IDs.
+// Per-account browser cache, including local-only messages and preferences.
 export const browserHistory = {
   load(storage, key) {
     const parsed = JSON.parse(storage.getItem(key) ?? '[]');

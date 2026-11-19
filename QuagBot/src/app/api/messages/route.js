@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticatedRoute } from '@/lib/ai-route';
-import { AIError, callAI, MAX_MESSAGE_LENGTH, parseChatResponse, readResponse } from '@/lib/ai-backend.mjs';
+import { AIError, MAX_MESSAGE_LENGTH, sendAIMessage } from '@/lib/ai-backend.mjs';
 
 export const POST = authenticatedRoute(async (request, body, userId) => {
   if (typeof body.conversationId !== 'string' || !body.conversationId.trim() || body.conversationId.length > 200) {
@@ -12,10 +12,11 @@ export const POST = authenticatedRoute(async (request, body, userId) => {
   // Send the actual user text. Model instructions and retrieval belong in the AI service.
 
 
-  const payload = await callAI('/chat/stream', {
+  const payload = await sendAIMessage({
     userId,
-    body: { conversation_id: body.conversationId, message: body.message.trim() },
+    conversationId: body.conversationId,
+    message: body.message.trim(),
     signal: request.signal,
-  }, async (response) => parseChatResponse(await readResponse(response), response.headers.get('content-type') ?? ''));
+  });
   return NextResponse.json(payload);
 });
