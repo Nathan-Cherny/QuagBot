@@ -2,6 +2,7 @@
 
 import { CloudUpload, FileText, RefreshCw, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 
 // Pill buttons match the "Chat Settings" dialog (see ChatSettings.jsx).
 const PILL = 'cursor-pointer rounded-full border border-black px-space-4 py-space-2 w-full hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100'
@@ -20,19 +21,21 @@ function formatSize(bytes) {
 
 export default function UploadPDFButton({ setUserPDFOpen }) {
     return (
-        <button onClick={() => setUserPDFOpen(true)} className="bg-linear-to-r border from-teal-500/50 to-blue-500/50 p-1 rounded-4xl m-auto h-full cursor-pointer hover:scale-105" title="Upload PDF To QuagBot">
+        <button type="button" aria-label="Upload PDF" onClick={() => setUserPDFOpen(true)} className="bg-linear-to-r border from-teal-500/50 to-blue-500/50 p-1 rounded-4xl m-auto h-full cursor-pointer hover:scale-105" title="Upload PDF To QuagBot">
             <CloudUpload size={22} />
         </button>
     )
 }
 
-// onSubmit (optional) receives the selected File when the user presses Submit.
-export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
+export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onUploaded }) {
     const inputRef = useRef(null)
     const urlRef = useRef(null)
+    const uploadRef = useRef(null)
     // The File and its preview URL are stored together so they can't drift apart.
     const [selection, setSelection] = useState(null)
     const [error, setError] = useState('')
+    const [uploading, setUploading] = useState(false)
+    const [result, setResult] = useState(null)
 
     function revokePreview() {
         if (urlRef.current) {
@@ -41,17 +44,21 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
         }
     }
 
-    // Release the preview URL if the component unmounts while a PDF is selected.
-    useEffect(() => revokePreview, [])
+    useEffect(() => () => {
+        revokePreview()
+        uploadRef.current?.abort()
+    }, [])
 
     function clearSelection() {
         revokePreview()
         setSelection(null)
         setError('')
+        setResult(null)
         if (inputRef.current) inputRef.current.value = ''
     }
 
     function close() {
+        if (uploadRef.current) return
         clearSelection()
         setUserPDFOpen(false)
     }
@@ -60,10 +67,11 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
     useEffect(() => {
         if (!userPDFOpen) return
         function onKeyDown(event) {
-            if (event.key !== 'Escape') return
+            if (event.key !== 'Escape' || uploadRef.current) return
             revokePreview()
             setSelection(null)
             setError('')
+            setResult(null)
             setUserPDFOpen(false)
         }
         window.addEventListener('keydown', onKeyDown)
@@ -76,6 +84,7 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
         event.target.value = ''
         if (!file) return
         if (!isPDF(file)) {
+            clearSelection()
             setError('Please choose a PDF file.')
             return
         }
@@ -83,12 +92,40 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
         urlRef.current = URL.createObjectURL(file)
         setSelection({ file, url: urlRef.current })
         setError('')
+        setResult(null)
     }
 
-    function handleSubmit() {
-        if (!selection) return
-        onSubmit?.(selection.file)
-        close()
+    async function handleSubmit() {
+        if (!selection || uploadRef.current || result) return
+        const controller = new AbortController()
+        uploadRef.current = controller
+        setUploading(true)
+        setError('')
+        try {
+            const body = new FormData()
+            body.append('files', selection.file)
+            const response = await fetch('/api/documents', {
+                method: 'POST',
+                body,
+                signal: controller.signal,
+            })
+            const document = await response.json().catch(() => null)
+            if (!response.ok || !document?.id) {
+                const fallback = response.status === 413 ? 'The PDF upload must be under 10 MB.' : 'Could not upload the PDF. Please try again.'
+                throw new Error(document?.error || fallback)
+            }
+            if (!controller.signal.aborted) {
+                setResult(document)
+                onUploaded?.(document)
+            }
+        } catch (error) {
+            if (!controller.signal.aborted) setError(error.message)
+        } finally {
+            if (!controller.signal.aborted) {
+                uploadRef.current = null
+                setUploading(false)
+            }
+        }
     }
 
     if (!userPDFOpen) return null
@@ -117,6 +154,7 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
                             type="file"
                             accept=".pdf,application/pdf"
                             className="hidden"
+                            disabled={uploading}
                             onChange={handleFileChange}
                         />
 
@@ -126,15 +164,15 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
                                     <span className="block font-medium">{selection.file.name}</span>
                                     <span className="text-text-muted">{formatSize(selection.file.size)}</span>
                                 </p>
-                                <button type="button" className={`${PILL_SECONDARY} flex items-center justify-center gap-space-2`} onClick={() => inputRef.current?.click()}>
+                                <button type="button" className={`${PILL_SECONDARY} flex items-center justify-center gap-space-2`} disabled={uploading} onClick={() => inputRef.current?.click()}>
                                     <RefreshCw size={16} aria-hidden="true" /> Change PDF
                                 </button>
-                                <button type="button" className={`${PILL_SECONDARY} flex items-center justify-center gap-space-2`} onClick={clearSelection}>
+                                <button type="button" className={`${PILL_SECONDARY} flex items-center justify-center gap-space-2`} disabled={uploading} onClick={clearSelection}>
                                     <Trash2 size={16} aria-hidden="true" /> Remove PDF
                                 </button>
                             </>
                         ) : (
-                            <button type="button" className={`${PILL_SECONDARY} flex items-center justify-center gap-space-2`} onClick={() => inputRef.current?.click()}>
+                            <button type="button" className={`${PILL_SECONDARY} flex items-center justify-center gap-space-2`} disabled={uploading} onClick={() => inputRef.current?.click()}>
                                 <CloudUpload size={16} aria-hidden="true" /> Choose PDF
                             </button>
                         )}
@@ -153,7 +191,7 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
                                 </div>
                             </object>
                         ) : (
-                            <button type="button" className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-space-2 p-space-3 text-center text-text-muted hover:text-text" onClick={() => inputRef.current?.click()}>
+                            <button type="button" className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-space-2 p-space-3 text-center text-text-muted hover:text-text" disabled={uploading} onClick={() => inputRef.current?.click()}>
                                 <FileText size={40} aria-hidden="true" />
                                 <span>No PDF selected</span>
                             </button>
@@ -161,9 +199,27 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onSubmit }) {
                     </div>
                 </div>
 
+                {uploading && <p role="status" className="mt-space-3">Uploading and checking processing status…</p>}
+                {result && (
+                    <div className="mt-space-3 rounded-card border border-border p-space-3">
+                        <p role="status" className="font-medium">PDF uploaded.</p>
+                        <dl className="mt-space-2 grid gap-space-2 text-sm sm:grid-cols-3">
+                            <div><dt>Processing status</dt><dd>{result.status ?? 'Unavailable'}</dd></div>
+                            <div><dt>Embedding status</dt><dd>{result.embedding_status ?? 'Unavailable'}</dd></div>
+                            <div><dt>Chunk count</dt><dd>{result.chunk_count ?? 'Unavailable'}</dd></div>
+                        </dl>
+                        {!onUploaded && <Link href="/documents" className="mt-space-2 inline-block underline">View Documents</Link>}
+                    </div>
+                )}
                 <div className="mt-space-5 flex flex-col gap-space-2">
-                    <button type="button" className={PILL_PRIMARY} disabled={!selection} onClick={handleSubmit}>Submit</button>
-                    <button type="button" className={PILL_SECONDARY} onClick={close}>Cancel</button>
+                    {!result && (
+                        <button type="button" className={PILL_PRIMARY} disabled={!selection || uploading} onClick={handleSubmit}>
+                            {uploading ? 'Uploading…' : 'Submit'}
+                        </button>
+                    )}
+                    <button type="button" className={PILL_SECONDARY} disabled={uploading} onClick={close}>
+                        {result ? 'Done' : 'Cancel'}
+                    </button>
                 </div>
             </div>
         </div>

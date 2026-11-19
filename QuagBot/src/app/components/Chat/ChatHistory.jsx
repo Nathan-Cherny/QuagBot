@@ -15,7 +15,7 @@ function closeMenu(event) {
   menu.querySelector('summary').focus();
 }
 
-function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat, onRenameChat, loading, syncError }) {
+function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat, onRenameChat, loading, syncError, deletingId, deleteError }) {
   const historyRef = useRef(null);
   const [query, setQuery] = useState('');
   const [sharingChat, setSharingChat] = useState(null);
@@ -94,6 +94,8 @@ function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat,
         <input type="search" aria-label="Search conversation titles and saved messages" placeholder="Search chats…" value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent py-space-2 text-sm text-text outline-none" />
       </div>
       <p className="mb-space-3 text-xs text-text-muted">Saved in browser.</p>
+      {deletingId && <p role="status" className="mb-space-3 text-xs text-text-muted">Deleting chat…</p>}
+      {deleteError && <p role="alert" className="mb-space-3 text-xs text-error">{deleteError}</p>}
       {syncError && <p role="status" className="mb-space-3 text-xs text-text-muted">{syncError}</p>}
       {loading && <p role="status" className="mb-space-2 text-xs text-text-muted">Loading saved conversations…</p>}
       {!loading && chats.length === 0 && <p className="text-sm text-text-muted">Your conversations will appear here after your first message.</p>}
@@ -121,7 +123,7 @@ function ChatHistory({ chats, onSelectChat, activeChat, onNewChat, onDeleteChat,
                         <button type="button" onClick={(event) => { closeMenu(event); setSharingChat(chat); }} disabled={!chat.content.length} className={menuItem}><Share2 size={15} aria-hidden="true" /> Share</button>
                         <button type="button" onClick={(event) => { closeMenu(event); setEditingId(chat.id); setTitle(chat.title); }} className={menuItem}><Pencil size={15} aria-hidden="true" /> Rename</button>
                         <div className="my-space-1 border-t border-border" />
-                        <button type="button" onClick={(event) => { closeMenu(event); onDeleteChat(chat.id); }} className={`${menuItem} text-error hover:bg-danger-bg`}><Trash2 size={15} aria-hidden="true" /> Delete</button>
+                        <button type="button" onClick={(event) => { closeMenu(event); onDeleteChat(chat.id); }} disabled={Boolean(deletingId)} className={`${menuItem} text-error hover:bg-danger-bg`}><Trash2 size={15} aria-hidden="true" /> Delete</button>
                       </div>
                     </details>
                   </div>

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { AIError } from './ai-backend.mjs';
 
-export function authenticatedRoute(handler) {
+export function authenticatedRoute(handler, { parseBody = true } = {}) {
   return async (request, context) => {
     try {
       const supabase = await createClient();
@@ -10,7 +10,7 @@ export function authenticatedRoute(handler) {
       const userId = data?.claims?.sub;
       if (error || !userId) return NextResponse.json({ error: 'Please sign in again to use AI chat.' }, { status: 401 });
       let body = {};
-      if (request.method !== 'GET') {
+      if (parseBody && request.method !== 'GET') {
         try { body = await request.json(); }
         catch { throw new AIError('Send a valid JSON request.', 400); }
         if (!body || typeof body !== 'object' || Array.isArray(body)) throw new AIError('Send a valid request object.', 400);

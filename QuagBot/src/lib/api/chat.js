@@ -1,11 +1,20 @@
-async function request(path, { signal, body, method = 'GET' } = {}) {
+import { addSavedChatContext } from '../historySync.mjs';
+
+async function request(path, { signal, body, method = 'GET', onUpdate } = {}) {
   const response = await fetch(path, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(onUpdate && { Accept: 'application/x-ndjson' }),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: 'no-store',
     signal,
   });
+  if (response.ok && response.headers.get('content-type')?.includes('application/x-ndjson')) {
+    return readReplyStream(response, onUpdate);
+  }
+  if (response.status === 204) return null;
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     const error = new Error(data?.error ?? `AI request failed (${response.status}). Please try again.`);
@@ -18,6 +27,37 @@ async function request(path, { signal, body, method = 'GET' } = {}) {
   return data;
 }
 
+async function readReplyStream(response, onUpdate) {
+  if (!response.body) throw new Error('The AI service returned an empty answer.');
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const event = JSON.parse(line);
+        if (event.type === 'completed') return { reply: event.reply };
+        if (event.type === 'error') {
+          throw Object.assign(new Error(event.error), {
+            status: event.status,
+            retryAfter: event.retryAfter,
+          });
+        }
+        onUpdate?.(event);
+      }
+    }
+    throw new Error('The AI service ended without an answer. Please try again.');
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
 export async function createConversation(title, options) {
   const data = await request('/api/conversations', { ...options, method: 'POST', body: { title } });
   if (typeof data.id !== 'string' || !data.id.trim()) throw new Error('The AI service did not provide a conversation ID. Please try again.');
@@ -28,6 +68,23 @@ export async function sendMessage(conversationId, message, options) {
   const data = await request('/api/messages', { ...options, method: 'POST', body: { conversationId, message } });
   if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('The AI service returned an empty answer. Please try again.');
   return data;
+}
+
+export async function sendConversationMessage({ conversationId, title, message, priorMessages, signal, onLink, onUpdate }) {
+  if (conversationId) {
+    try {
+      return await sendMessage(conversationId, message, { signal, onUpdate });
+    } catch (error) {
+      if (error.status !== 404 || signal?.aborted) throw error;
+    }
+  }
+
+  signal?.throwIfAborted();
+  const outgoingText = addSavedChatContext(message, priorMessages);
+  const conversation = await createConversation(title, { signal });
+  signal?.throwIfAborted();
+  onLink(conversation.id, outgoingText);
+  return sendMessage(conversation.id, outgoingText, { signal, onUpdate });
 }
 
 export async function listConversations(options) {
@@ -43,7 +100,8 @@ export async function listMessages(conversationId, options) {
 }
 
 export async function deleteConversation(conversationId, options) {
-  const data = await request(`/api/conversations`, {...options, method:'DELETE', body: { conversationId }})
-  if (/*typeof data?.deleted !== true*/ false) throw new Error("Conversation could not be deleted.");
-  return data
+  await request(`/api/conversations/${encodeURIComponent(conversationId)}`, {
+    ...options,
+    method: 'DELETE',
+  });
 }

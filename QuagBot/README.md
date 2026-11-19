@@ -26,8 +26,9 @@ ID as `X-User-ID`. They never trust a user ID supplied by the browser. Conversat
 creation configures the Revolutionary War instructions through AI Infra's
 `PUT /me/system-prompt` endpoint rather than adding them to every user message.
 
-The server reads the SSE response and returns its final answer as `{ reply }`.
-Replies display as Markdown. Backend calls have a 60-second timeout and a 2 MiB
+The server forwards SSE progress and answer deltas to the browser, where the
+reply appears as Markdown while it is written. The completed event supplies the
+answer saved in chat history. Backend calls have a 60-second timeout and a 2 MiB
 response limit. Switching chats cancels the browser request and prevents late
 answers from appearing in another chat.
 
@@ -45,21 +46,31 @@ repeating the visible question; app-generated explanation prefixes are removed
 from questions restored on another device. Generated prompts/raw replies are kept
 as matching metadata in the local cache for newly sent turns, not in public shares.
 Failed/pending remote assistant output is not rendered as a completed answer.
-A remotely pending turn blocks sending until its status is checked by reopening
-the conversation, avoiding accidental retry.
+Reopen a conversation to check a pending reply. When a pending request is at
+least five minutes old, reopening the conversation allows a follow-up.
+A follow-up to a chat with a missing server conversation reconnects the same
+browser history entry and includes recent saved turns as context.
 
 Network failures retain cached conversations and show a status message. Switching
 chats or accounts cancels outstanding reads, and late results are ignored. New
 questions are disabled while the selected chat's messages are being restored.
 
-Renames and deletion remain browser-only. Deletion records the backend ID in a
-per-account browser hide list so sync does not restore that chat locally. It does
-not delete the server record or hide it on other devices. Clearing browser storage
-also clears these local overrides. Local fallback answers, unsent questions, and
+Renames are saved in the browser. Deleting a server-backed conversation
+permanently removes the conversation, messages, and account-based sharing on
+AI Infra. Conversations saved only in the browser are deleted locally. Public
+snapshot links contain their own copy, so deleting a conversation leaves those
+links accessible. Local fallback answers, unsent questions, and
 practice-only chats are not uploaded by history synchronization; only messages
 already stored by AI Infra can be restored on another device. Cached history and
 appearance preferences remain in user-scoped localStorage. A damaged cache is
 not overwritten; conversations can still be loaded into memory from the backend.
+
+## Documents
+
+Upload a PDF from the chat composer or **Account → Documents**. The upload
+dialog shows the processing result, and uploading from Documents refreshes
+the list. **Ask in chat** drafts a question about the filename for you to
+edit and send.
 
 ## Checks
 

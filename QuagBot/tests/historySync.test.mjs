@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeConversationCatalog, restoreMessages } from '../src/lib/historySync.mjs';
+import { addSavedChatContext, mergeConversationCatalog, restoreMessages } from '../src/lib/historySync.mjs';
 
 const remote = { id: 'server-1', title: 'Washington', updated_at: '2026-11-03T12:00:00Z' };
 const user = { id: 'u1', role: 'user', text: 'Who was Washington?' };
@@ -42,7 +42,10 @@ test('restored messages are chronological and assistant roles render as QuagBot'
 });
 
 test('failed or pending assistants are not displayed as successful answers', () => {
-  const restored = restoreMessages([...records.slice(0, 1), { ...records[1], status: 'pending' }]);
+  const pendingRecords = [records[0], { ...records[1], status: 'pending' }];
+  const submittedAt = Date.parse(records[1].created_at);
+  const restored = restoreMessages(pendingRecords, [], submittedAt + 1000);
+  assert.equal(restoreMessages(pendingRecords, [], submittedAt + 6 * 60 * 1000).pending, false);
   assert.deepEqual(restored.messages, [user]);
   assert.equal(restored.pending, true);
   assert.equal(restoreMessages([{ ...records[1], status: 'failed' }]).messages.length, 0);
@@ -101,4 +104,29 @@ test('locally hidden backend chats do not reappear during catalog synchronizatio
   assert.deepEqual(mergeConversationCatalog([], [remote], hidden), []);
   assert.equal(mergeConversationCatalog([], [remote, other], hidden)[0].backendConversationId, other.id);
   assert.deepEqual([...hidden], [remote.id]);
+});
+
+test('continuing saved history supplies context while restoring only the new question', () => {
+  const question = 'What did he do next?';
+  const previous = [user, { id: 'a-local', role: 'quagbot', text: 'A general.' }];
+  const outgoing = addSavedChatContext(question, previous);
+  assert.ok(outgoing.includes(user.text));
+  assert.ok(outgoing.includes(previous[1].text));
+  assert.equal(addSavedChatContext(outgoing, previous), outgoing);
+  const record = { ...records[0], id: 'next', content: outgoing };
+  const cached = [...previous, { id: 'local-next', role: 'user', text: question, remoteText: outgoing }];
+  assert.equal(restoreMessages([record]).messages[0].text, question);
+  const restored = restoreMessages([record], cached).messages;
+  assert.deepEqual(restored.slice(0, -1), previous);
+  assert.equal(restored.at(-1).backendMessageId, 'next');
+});
+
+test('saved context fits the message limit and omits the welcome message', () => {
+  const welcome = { id: 'welcome', role: 'quagbot', text: 'Hello!' };
+  assert.equal(addSavedChatContext('Question', [welcome]), 'Question');
+  const question = 'q'.repeat(18000);
+  const outgoing = addSavedChatContext(question, [welcome, { ...user, text: 'x'.repeat(2500) }]);
+  assert.ok(outgoing.length > question.length && outgoing.length <= 20000);
+  assert.ok(outgoing.endsWith(question));
+  assert.ok(!outgoing.includes(welcome.text));
 });

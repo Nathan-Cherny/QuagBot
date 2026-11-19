@@ -1,25 +1,17 @@
-import { deleteAIConversation } from "@/lib/ai-backend.mjs";
-import { NextResponse } from 'next/server';
+import { AIError, deleteAIConversation } from '@/lib/ai-backend.mjs';
 import { authenticatedRoute } from '@/lib/ai-route';
 
-export const DELETE = authenticatedRoute(async (request, body, userId) => {
-  const conversationId = body?.conversationId;
-
-  if (typeof conversationId !== 'string' || !conversationId.trim()) {
-    return NextResponse.json(
-      { error: 'A valid conversation ID is required.' },
-      { status: 400 }
-    );
+export const DELETE = authenticatedRoute(async (request, _body, userId, context) => {
+  const { conversationId } = await context.params;
+  if (!/^[a-z0-9_-]{1,200}$/i.test(conversationId)) {
+    throw new AIError('A valid conversation ID is required.', 400);
   }
 
-  await deleteAIConversation({
-    userId,
-    conversationId,
-    signal: request.signal,
-  });
-
-  return NextResponse.json({
-    deleted: true,
-    id: conversationId,
-  });
-});
+  try {
+    await deleteAIConversation({ userId, conversationId, signal: request.signal });
+  } catch (error) {
+    // A previous attempt or another device may already have deleted it.
+    if (error.status !== 404) throw error;
+  }
+  return new Response(null, { status: 204 });
+}, { parseBody: false });

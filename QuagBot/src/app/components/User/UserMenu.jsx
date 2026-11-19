@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import UserAvatar from './UserAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { buttonDanger, logoutButton } from '../ui/styles';
@@ -10,6 +11,7 @@ const MENU_ITEM = "cursor-pointer rounded-[6px] border-none bg-transparent px-sp
 function UserMenu({ name = 'Account', onSeeAccount, onLogout }) {
   const [open, setOpen] = useState(false);
   const [displayName, setDisplayName] = useState(null);
+  const [signedIn, setSignedIn] = useState(false);
   const router = useRouter();
 
   const seeAccount = onSeeAccount ?? (() => router.push('/profile'));
@@ -25,17 +27,18 @@ function UserMenu({ name = 'Account', onSeeAccount, onLogout }) {
   useEffect(() => {
     const supabase = createClient();
 
-    function nameFromUser(user) {
+    function updateUser(user) {
       const metaName = user?.user_metadata?.display_name?.trim();
-      return metaName || null;
+      setDisplayName(metaName || null);
+      setSignedIn(Boolean(user));
     }
 
     supabase.auth.getUser().then(({ data }) => {
-      setDisplayName(nameFromUser(data.user));
+      updateUser(data.user);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setDisplayName(nameFromUser(session?.user));
+      updateUser(session?.user);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -78,6 +81,11 @@ function UserMenu({ name = 'Account', onSeeAccount, onLogout }) {
           <button type="button" className={MENU_ITEM} role="menuitem" onClick={handleSeeAccount}>
             See account
           </button>
+          {signedIn && (
+            <Link href="/documents" className={MENU_ITEM} role="menuitem" onClick={() => setOpen(false)}>
+              Documents
+            </Link>
+          )}
           <LogOutButton className={`justify-start`} handleLogout={handleLogout}/>
         </div>
       )}

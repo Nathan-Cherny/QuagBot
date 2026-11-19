@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { AIError, callAI, createAIConversation, listAIConversations, listAIMessages, parseChatResponse, readResponse, sendAIMessage } from '../src/lib/ai-backend.mjs';
+import { AIError, callAI, createAIConversation, listAIConversations, listAIDocuments, listAIMessages, parseChatResponse, readResponse, sendAIMessage, uploadAIPDF } from '../src/lib/ai-backend.mjs';
 
 const completion = 'data: {"status":"completed","response":{"reply":"Washington commanded the Continental Army."}}\n\n';
 
@@ -159,4 +159,88 @@ test('rate limits preserve status and Retry-After', async (t) => {
     + 'event: status\ndata: {"status":"generating","response":null}\n\n'
     + 'event: status\ndata: {"status":"failed","message":"The response could not be generated.","response":null}\n\n';
   assert.throws(() => parseChatResponse(stream), (error) => error.status === 502 && /could not complete/.test(error.message));
+});
+
+test('document listing forwards the account and preserves raw processing fields', async (t) => {
+  const previous = process.env.AI_API_URL;
+  process.env.AI_API_URL = 'https://example.test';
+  t.after(() => {
+    if (previous === undefined) delete process.env.AI_API_URL;
+    else process.env.AI_API_URL = previous;
+  });
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, 'https://example.test/upload?domain=education');
+    assert.equal(options.method, 'GET');
+    assert.equal(options.headers['X-User-ID'], 'verified-user');
+    return Response.json([
+      { id: 'a', filename: 'Yorktown.pdf', embedding_status: 'pending', chunk_count: 0, user_id: 'verified-user' },
+      { id: 'b', filename: 'Notes.pdf', status: 'new-backend-value', chunk_count: 12 },
+    ]);
+  });
+  assert.deepEqual(await listAIDocuments({ userId: 'verified-user' }), [
+    { id: 'a', filename: 'Yorktown.pdf', status: null, embedding_status: 'pending', chunk_count: 0 },
+    { id: 'b', filename: 'Notes.pdf', status: 'new-backend-value', embedding_status: null, chunk_count: 12 },
+  ]);
+});
+
+test('streams progress and delta events split across SSE chunks', async (t) => {
+  const previous = process.env.AI_API_URL;
+  process.env.AI_API_URL = 'https://example.test';
+  t.after(() => {
+    if (previous === undefined) delete process.env.AI_API_URL;
+    else process.env.AI_API_URL = previous;
+  });
+  const encoder = new TextEncoder();
+  let stream;
+  const body = new ReadableStream({ start(controller) { stream = controller; } });
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(body, { headers: { 'Content-Type': 'text/event-stream' } }));
+  const updates = [];
+  const result = sendAIMessage({
+    userId: 'verified-user',
+    conversationId: 'server-id',
+    message: 'What happened?',
+    onUpdate(event) {
+      updates.push(event);
+      if (event.type === 'delta') {
+        stream.enqueue(encoder.encode('data: {"status":"completed","response":{"reply":"Final reply"}}\n\n'));
+        stream.close();
+      }
+    },
+  });
+  stream.enqueue(encoder.encode('data: {"status":"searching"}\r\n\r'));
+  stream.enqueue(encoder.encode('\nevent: delta\ndata: {"text":"Partial reply"}\n\n'));
+  assert.deepEqual(await result, { reply: 'Final reply' });
+  assert.deepEqual(updates, [
+    { type: 'progress', label: 'searching' },
+    { type: 'delta', text: 'Partial reply' },
+  ]);
+});
+
+test('uploads a PDF as education multipart and preserves processing fields', async (t) => {
+  const previous = process.env.AI_API_URL;
+  process.env.AI_API_URL = 'https://example.test';
+  t.after(() => {
+    if (previous === undefined) delete process.env.AI_API_URL;
+    else process.env.AI_API_URL = previous;
+  });
+  const file = new File(['%PDF-1.7'], 'Yorktown.pdf', { type: 'application/pdf' });
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, 'https://example.test/upload');
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers['X-User-ID'], 'verified-user');
+    assert.equal(options.headers['Content-Type'], undefined);
+    assert.equal(options.body.get('domain'), 'education');
+    assert.equal(options.body.getAll('files').length, 1);
+    assert.equal(options.body.get('files').name, file.name);
+    assert.equal(await options.body.get('files').text(), '%PDF-1.7');
+    return Response.json([{
+      success: true, document_id: 'uploaded-id', filename: file.name,
+      status: 'uploaded', embedding_status: 'completed', chunk_count: 1,
+    }], { status: 201 });
+  });
+  assert.deepEqual(await uploadAIPDF({ userId: 'verified-user', file }), {
+    id: 'uploaded-id', filename: 'Yorktown.pdf',
+    status: 'uploaded', embedding_status: 'completed', chunk_count: 1,
+  });
 });

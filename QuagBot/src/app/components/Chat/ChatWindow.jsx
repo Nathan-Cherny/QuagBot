@@ -9,7 +9,7 @@ import { chatAvatar, chatMessageRow } from '../ui/styles';
 
 const TYPING_DOT = 'size-[6px] animate-typing-bounce rounded-full bg-text-muted';
 
-function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, error, onRetry, retryLabel = 'Try again', onOpenHistory, storageError, ready = true, archived = false, emptyHistory = false, sendDisabled = false, title = 'New chat', date, maintenance = false, cooldownSeconds = 0, syncLoading = false, syncPending = false, syncError }) {
+function ChatWindow({ messages, initialDraft, isLoading, streamingText, streamProgress, onSend, onNewChat, responseStyle, error, onRetry, onOpenHistory, storageError, ready = true, sendDisabled = false, title = 'New chat', date, maintenance = false, cooldownSeconds = 0, syncLoading = false, syncPending = false, syncError }) {
   const scrollRef = useRef(null);
   const contentRef = useRef(null);
   const followLatest = useRef(true);
@@ -48,7 +48,7 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
     if (el && followLatest.current) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [messages, isLoading, error]);
+  }, [messages, streamingText, isLoading, error]);
 
   return (
     <div data-chat-window className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-main-chat-bg">
@@ -71,8 +71,6 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
         {maintenance && <p role="status" className="mt-space-2 font-medium">QuagBot is running with limited capabilities while our AI service is temporarily unavailable. You can keep chatting, though some questions may need to wait.</p>}
         {cooldownSeconds > 0 && <p role="status">QuagBot is running with limited capabilities due to a connection issue. You can keep chatting. We’ll try the AI service again on your next message in {cooldownSeconds} seconds.</p>}
         {!ready && <span role="status"> Loading your chats…</span>}
-        {emptyHistory && <p role="status">This chat has no messages saved in this browser. <button type="button" onClick={onNewChat} className="cursor-pointer underline">Start a new chat</button> to ask the AI.</p>}
-        {archived && <p role="status">This chat predates the AI connection and is read-only. Start a new chat to ask the AI.</p>}
         {storageError && <p role="alert" className="mt-space-1 text-error">{storageError}</p>}
         {syncLoading && <p role="status">Syncing messages… Cached messages remain visible.</p>}
         {!syncLoading && syncPending && <p role="status">The AI service is still processing a saved message. Reopen this chat to check for the reply.</p>}
@@ -86,14 +84,17 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
             ))}
 
             {!sendDisabled && !messages.some((message) => message.role === 'user') && (
-              <SuggestedQuestions onSelect={onSend} disabled={isLoading || sendDisabled || !ready || archived} />
+              <SuggestedQuestions onSelect={onSend} disabled={isLoading || sendDisabled || !ready} />
             )}
 
+            {isLoading && streamingText && (
+              <ChatMessage role="quagbot" text={streamingText} responseStyle={responseStyle} streaming />
+            )}
             {isLoading && (
               <div className={chatMessageRow}>
                 <img src="/QuagBotLogo.png" alt="Bot" className={chatAvatar} />
                 <div role="status" className="flex flex-wrap items-center gap-space-2 px-space-4 py-space-3 text-sm text-text-muted">
-                  <span>QuagBot is responding…</span>
+                  <span>{streamProgress || (streamingText ? "Writing answer…" : "QuagBot is responding…")}</span>
                   <span aria-hidden="true" className="flex gap-[4px]">
                     <span className={TYPING_DOT} />
                     <span className={`${TYPING_DOT} [animation-delay:0.15s]`} />
@@ -105,8 +106,8 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
             {error && (
               <div role="alert" className="rounded-card border border-danger-border bg-danger-bg p-space-3 text-sm text-error">
                 <p>{error}</p>
-                <button type="button" onClick={onRetry} disabled={isLoading || !ready || archived} className="mt-space-2 cursor-pointer rounded-card border border-danger-border bg-surface px-space-3 py-space-2 font-medium hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50">
-                  {retryLabel}
+                <button type="button" onClick={onRetry} disabled={isLoading || sendDisabled || !ready} className="mt-space-2 cursor-pointer rounded-card border border-danger-border bg-surface px-space-3 py-space-2 font-medium hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error disabled:cursor-not-allowed disabled:opacity-50">
+                  Try again
                 </button>
               </div>
             )}
@@ -119,7 +120,7 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
           </button>
         )}
       </div>
-      <ChatInput onSend={onSend} disabled={isLoading || sendDisabled || !ready || archived} />
+      <ChatInput initialDraft={initialDraft} onSend={onSend} disabled={isLoading || sendDisabled || !ready} />
     </div >
   );
 }

@@ -14,11 +14,11 @@ const USER_BUBBLE = `${BUBBLE} whitespace-pre-wrap min-w-0 max-w-[60%] max-[900p
 const BOT_BUBBLE = `${BUBBLE} rounded-bl-[2px] border-[0.5px] border-gray bg-quagbot-bubble text-left text-text flex flex-row gap-5 items-center`;
 const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 
-function ChatMessage({ role, text = "", responseStyle, isPDF, animateWelcome = false }) {
+function ChatMessage({ role, text = "", responseStyle, isPDF, streaming = false, animateWelcome = false }) {
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
   
-  if (text.startsWith("```json")) { text = parseMarkdownJson(text); isPDF = true }
+  if (!streaming && text.startsWith("```json")) { text = parseMarkdownJson(text); isPDF = true }
   
   if (isUser) return (
     <div className={`${chatMessageRow} justify-end`}>
@@ -55,7 +55,7 @@ function ChatMessage({ role, text = "", responseStyle, isPDF, animateWelcome = f
             <MarkdownMessage text={(isPDF) ? text.title : text} />
           </div>}
         </div>
-        {<Buttons text={text} />}
+        {!streaming && <Buttons text={text} />}
       </div>
 
       {isUser && <UserAvatar className={chatAvatar} />}

@@ -10,7 +10,7 @@ export class AIError extends Error {
 export const MAX_MESSAGE_LENGTH = 20000;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 
-export async function readResponse(response) {
+export async function readResponse(response, onText) {
   if (!response.body)
     throw new AIError("The AI service returned an empty response.");
   const reader = response.body.getReader();
@@ -24,9 +24,13 @@ export async function readResponse(response) {
       size += value.byteLength;
       if (size > MAX_RESPONSE_BYTES)
         throw new AIError("The AI service response was too large.");
-      text += decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value, { stream: true });
+      if (onText) onText(chunk);
+      else text += chunk;
     }
-    return text + decoder.decode();
+    const tail = decoder.decode();
+    if (onText) onText(tail);
+    return text + tail;
   } finally {
     await reader.cancel().catch(() => {});
     reader.releaseLock();
@@ -50,40 +54,64 @@ export function parseChatResponse(text, contentType = "") {
       throw new AIError("The AI service returned invalid JSON.");
     }
   }
+  const parser = createChatParser();
+  parser.push(text);
+  return parser.finish();
+}
+
+function createChatParser(onUpdate) {
+  let buffer = '';
   let completed;
-  for (const block of text.split(/\r?\n\r?\n/)) {
-    let event = "message";
+
+  function parseEvent(block) {
+    let event = 'message';
     const lines = [];
     for (const line of block.split(/\r?\n/)) {
-      if (line.startsWith("event:")) event = line.slice(6).trim();
-      if (line.startsWith("data:")) lines.push(line.slice(5).replace(/^ /, ""));
+      if (line.startsWith('event:')) event = line.slice(6).trim();
+      if (line.startsWith('data:')) lines.push(line.slice(5).replace(/^ /, ''));
     }
-    const raw = lines.join("\n");
-    if (!raw || raw.trim() === "[DONE]") continue;
+    const raw = lines.join('\n');
+    if (!raw || raw.trim() === '[DONE]') return;
     let data;
     try {
       data = JSON.parse(raw);
     } catch {
-      throw new AIError("The AI service returned an invalid stream.");
+      throw new AIError('The AI service returned an invalid stream.');
     }
-    if (
-      event === "error" ||
-      data?.status === "error" ||
-      data?.status === "failed"
-    ) {
-      throw new AIError(
-        "The AI service could not complete this answer. Please try again.",
-      );
+    const status = data?.status ?? data?.type ?? event;
+    if (['error', 'failed'].includes(status) || ['error', 'failed'].includes(event)) {
+      throw new AIError('The AI service could not complete this answer. Please try again.');
     }
-    if (data?.status === "completed" || event === "completed") {
+    if (status === 'completed' || event === 'completed') {
       completed = normalizeReply(data?.response);
+      return;
+    }
+    if (completed || !onUpdate) return;
+
+    const delta = data?.delta ?? ((status === 'delta' || event === 'delta') ? data?.text ?? data?.response ?? data : null);
+    if (typeof delta === 'string' && delta) {
+      onUpdate({ type: 'delta', text: delta });
+    } else if (typeof status === 'string' && status !== 'message' && status !== 'delta') {
+      const label = typeof data?.message === 'string' ? data.message : status.replaceAll('_', ' ');
+      onUpdate({ type: 'progress', label });
     }
   }
-  if (!completed)
-    throw new AIError(
-      "The AI service ended without an answer. Please try again.",
-    );
-  return completed;
+
+  return {
+    push(chunk) {
+      buffer += chunk;
+      const blocks = buffer.split(/\r?\n\r?\n/);
+      buffer = blocks.pop();
+      for (const block of blocks) parseEvent(block);
+    },
+    finish() {
+      if (buffer) parseEvent(buffer);
+      if (!completed) {
+        throw new AIError('The AI service ended without an answer. Please try again.');
+      }
+      return completed;
+    },
+  };
 }
 
 export async function callAI(path, { userId, body, signal, timeoutMs = 60000, method = 'POST' }, consume) {
@@ -119,26 +147,31 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
   signal?.addEventListener("abort", abort, { once: true });
 
   try {
+    const multipart = body instanceof FormData;
     const response = await fetch(`${base.href.replace(/\/$/, "")}${path}`, {
       method,
-      headers: { "Content-Type": "application/json", "X-User-ID": userId },
-      body: method === "GET" ? undefined : JSON.stringify(body),
+      headers: multipart
+        ? { "X-User-ID": userId }
+        : { "Content-Type": "application/json", "X-User-ID": userId },
+      body: multipart ? body : method === "GET" ? undefined : JSON.stringify(body),
       signal: controller.signal,
       cache: "no-store",
     });
     if (!response.ok) {
-
-      console.log(
-        `${base.href.replace(/\/$/, "")}${path} \n ${JSON.stringify(body)} ${method}`,
-      );
+      if (multipart && [400, 413, 422].includes(response.status)) {
+        const data = await readJSONResponse(response).catch(() => null);
+        const fallback = response.status === 413 ? 'The PDF exceeds the AI service upload limit.' : 'The AI service could not process this PDF.';
+        const message = data?.message ?? data?.detail?.message;
+        throw new AIError(typeof message === 'string' && message.trim() ? message : fallback, response.status);
+      }
       await response.body?.cancel();
       if (
         response.status === 404 &&
         (path === "/chat" ||
-          /^\/conversations\/[^/]+\/messages$/.test(path))
+          /^\/conversations\/[^/]+(?:\/messages)?$/.test(path))
       ) {
         throw new AIError(
-          "This conversation is no longer available for your account. Any locally saved messages are kept. Start a new chat to continue.",
+          "This conversation is no longer available for your account.",
           404,
         );
       }
@@ -213,12 +246,20 @@ export async function readJSONResponse(response) {
   }
 }
 
-export function sendAIMessage({ userId, conversationId, message, signal }) {
+export function sendAIMessage({ userId, conversationId, message, signal, onUpdate }) {
   return callAI('/chat', {
     userId,
     body: { conversation_id: conversationId, message },
     signal,
-  }, async (response) => parseChatResponse(await readResponse(response), response.headers.get('content-type') ?? ''));
+  }, async (response) => {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!onUpdate || contentType.includes('application/json')) {
+      return parseChatResponse(await readResponse(response), contentType);
+    }
+    const parser = createChatParser(onUpdate);
+    await readResponse(response, parser.push);
+    return parser.finish();
+  });
 }
 
 export async function listAIConversations({ userId, signal }) {
@@ -282,11 +323,62 @@ export async function deleteAIConversation({
 }) {
   await callAI(
     `/conversations/${encodeURIComponent(conversationId)}`,
-    {
-      userId,
-      signal,
-      method: 'DELETE',
-    },
+    { userId, signal, method: 'DELETE' },
     async () => null,
   );
+}
+
+export async function listAIDocuments({ userId, signal }) {
+  const records = await callAI('/upload?domain=education', {
+    userId, signal, method: 'GET',
+  }, readJSONResponse);
+  if (!Array.isArray(records) || records.some((record) =>
+    typeof record?.id !== 'string' || typeof record.filename !== 'string'
+  )) {
+    throw new AIError('The AI service returned an invalid document list.');
+  }
+  return records.map((record) => ({
+    id: record.id,
+    filename: record.filename,
+    ...processingFields(record),
+  }));
+}
+
+function processingFields(record) {
+  return {
+    status: typeof record.status === 'string' && record.status.trim() ? record.status : null,
+    embedding_status: typeof record.embedding_status === 'string' && record.embedding_status.trim()
+      ? record.embedding_status
+      : null,
+    chunk_count: Number.isSafeInteger(record.chunk_count) && record.chunk_count >= 0
+      ? record.chunk_count
+      : null,
+  };
+}
+
+export async function uploadAIPDF({ userId, file, signal }) {
+  const body = new FormData();
+  body.set('domain', 'education');
+  body.append('files', file, file.name);
+  const records = await callAI('/upload', { userId, body, signal }, readJSONResponse);
+  if (!Array.isArray(records) || records.length !== 1 || typeof records[0]?.success !== 'boolean') {
+    throw new AIError('The AI service returned an invalid upload result.');
+  }
+  const result = records[0];
+  if (!result.success) {
+    throw new AIError(
+      typeof result.message === 'string' && result.message.trim()
+        ? result.message
+        : 'The AI service could not process this PDF.',
+      422,
+    );
+  }
+  if (typeof result.document_id !== 'string' || !result.document_id.trim()) {
+    throw new AIError('The AI service did not return a document ID.');
+  }
+  return {
+    id: result.document_id,
+    filename: typeof result.filename === 'string' ? result.filename : file.name,
+    ...processingFields(result),
+  };
 }

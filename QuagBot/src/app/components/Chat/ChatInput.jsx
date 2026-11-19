@@ -8,8 +8,8 @@ function appendTranscript(current, transcript) {
   return `${current}${separator}${transcript}`;
 }
 
-function ChatInput({ onSend, disabled }) {
-  const [value, setValue] = useState('');
+function ChatInput({ onSend, disabled, initialDraft = '' }) {
+  const [value, setValue] = useState(initialDraft);
   const [userPDFOpen, setUserPDFOpen] = useState(false)
   const [interimTranscript, setInterimTranscript] = useState('');
 
