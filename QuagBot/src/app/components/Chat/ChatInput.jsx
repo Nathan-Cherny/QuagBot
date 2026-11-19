@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Mic, MicOff } from 'lucide-react';
+import UploadPDFButton, { UploadPDFDialog } from './UploadPDF';
 
 function appendTranscript(current, transcript) {
   if (!transcript) return current;
@@ -89,7 +90,7 @@ function ChatInput({ onSend, disabled }) {
       setIsListening(false);
       setSpeechStatus('Dictation stopped because your message was sent.');
     }
-    
+
     onSend(trimmed, false);
     setValue('');
     setInterimTranscript('');
@@ -103,7 +104,7 @@ function ChatInput({ onSend, disabled }) {
     }
   }
 
-//Speech recognition functions
+  //Speech recognition functions
   function commitInterimTranscript() {
     const transcript = interimTranscriptRef.current;
     if (!transcript) return;
@@ -218,52 +219,53 @@ function ChatInput({ onSend, disabled }) {
 
   return (
     <div className="border-t border-border bg-surface p-space-4">
-      <div className="flex items-end gap-space-2">
-      <textarea
-        ref={textareaRef}
-        aria-label="Chat message"
-        className="max-h-[160px] min-w-0 flex-1 resize-none overflow-y-auto rounded-card border border-border bg-bg px-space-3 py-space-2 text-[0.92rem] leading-[1.4] text-text focus:outline-2 focus:outline-offset-1 focus:outline-accent"
-        placeholder="Send a message..."
-        rows={1}
-        maxLength={10000}
-        value={draftValue}
-        onChange={(event) => {
-          selectionRef.current = null;
-          setValue(event.target.value);
-          setInterimTranscript('');
-          interimTranscriptRef.current = '';
-        }}
-        onKeyDown={handleKeyDown}
-      />
-      
-      {/* Button to start and stop speech recognition */}
-      <button
-        type="button"
-        className={`flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none ${
-          isListening
-            ? 'bg-red-600 text-white'
-            : 'bg-navbar-bg text-text hover:brightness-95'
-        } disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
-        onClick={toggleSpeechRecognition}
-        disabled={disabled && !isListening}
-        aria-label={isListening ? 'Stop dictation' : 'Start dictation'}
-        aria-pressed={isListening}
-      >
-        {isListening ? (
-          <MicOff size={18} aria-hidden="true" />
-        ) : (
-          <Mic size={18} aria-hidden="true" />
-        )}
-      </button>
+      <div className="flex items-center gap-space-2">
+        <UploadPDFButton/>
+        <UploadPDFDialog/>
+        <textarea
+          ref={textareaRef}
+          aria-label="Chat message"
+          className="max-h-[160px] min-w-0 flex-1 resize-none overflow-y-auto rounded-card border border-border bg-bg px-space-3 py-space-2 text-[0.92rem] leading-[1.4] text-text focus:outline-2 focus:outline-offset-1 focus:outline-accent"
+          placeholder="Send a message..."
+          rows={1}
+          maxLength={10000}
+          value={draftValue}
+          onChange={(event) => {
+            selectionRef.current = null;
+            setValue(event.target.value);
+            setInterimTranscript('');
+            interimTranscriptRef.current = '';
+          }}
+          onKeyDown={handleKeyDown}
+        />
 
-      <button
-        type="button"
-        className="cursor-pointer rounded-card border-none bg-accent px-space-4 py-space-2 text-[0.9rem] font-medium text-accent-contrast enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
-        onClick={submit}
-        disabled={disabled || !draftValue.trim()}
-      >
-        Send
-      </button>
+        {/* Button to start and stop speech recognition */}
+        <button
+          type="button"
+          className={`flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none ${isListening
+              ? 'bg-red-600 text-white'
+              : 'bg-navbar-bg text-text hover:brightness-95'
+            } disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+          onClick={toggleSpeechRecognition}
+          disabled={disabled && !isListening}
+          aria-label={isListening ? 'Stop dictation' : 'Start dictation'}
+          aria-pressed={isListening}
+        >
+          {isListening ? (
+            <MicOff size={18} aria-hidden="true" />
+          ) : (
+            <Mic size={18} aria-hidden="true" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          className="cursor-pointer rounded-card border-none bg-accent px-space-4 py-space-2 text-[0.9rem] font-medium text-accent-contrast enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={submit}
+          disabled={disabled || !draftValue.trim()}
+        >
+          Send
+        </button>
       </div>
       {/* Live region for screen readers to announce speech recognition status */}
       <span className="sr-only" aria-live="polite" aria-atomic="true">
