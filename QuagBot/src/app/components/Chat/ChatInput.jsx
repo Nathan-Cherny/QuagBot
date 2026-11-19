@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { checkAndDecrease } from "./RateWarning";
 
 function appendTranscript(current, transcript) {
   if (!transcript) return current;
@@ -74,44 +75,11 @@ function ChatInput({ onSend, disabled }) {
   }, [draftValue]);
 
   async function handleLimitClick() {
-    //const now = new Date();
-    //const currentDay = now.getDate();
-    const {data: {user}} = await supabase.auth.getUser();
-    
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("remaining_messages, last_message_at")
-      .eq('id', user.id)
-      .single()
-
-    if (error || !profile) {
-      console.error("Something Went Wrong - Profile not found", error);
-      return;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    const lastMessageDate = profile.last_message_at;
-    let remainingMessages = profile.remaining_messages;
-
-    // If it's a new day, reset the count (PLACEHOLDER NUMBER)
-    const DAILY_LIMIT = 50; 
-    if (lastMessageDate !== today) {
-      remainingMessages = DAILY_LIMIT;
-    }
-    
-    if (remainingMessages == 0) {
-      //Lock message button if count is at 0 -> Potentially changing this feature
-      return false
-    }
-    else {
-      // Decrease the counter in the database
-      await supabase
-        .from('profiles')
-        .update({ remaining_messages: remainingMessages - 1 , last_message_at: today})
-        .eq('id', user.id)
-        .single()
-      return true;
-    }
+  const allowed = await checkAndDecrease(supabase);
+  if (!allowed) {
+    return false;
+  }
+  return true;
   }
 
   function submit(canSend) {
@@ -310,7 +278,7 @@ function ChatInput({ onSend, disabled }) {
         className="cursor-pointer rounded-card border-none bg-accent px-space-4 py-space-2 text-[0.9rem] font-medium text-accent-contrast enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={async () => {
           const canSend = await handleLimitClick();
-    submit(canSend);
+          submit(canSend);
         }}
         disabled={disabled || !draftValue.trim()}
       >
