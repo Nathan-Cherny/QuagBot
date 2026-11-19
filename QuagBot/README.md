@@ -21,7 +21,7 @@ http://localhost:3000 using a Supabase account.
 ## AI request flow
 
 The first question creates a backend conversation, then sends the question to
-`/chat/stream`. The Next.js routes verify the Supabase session and forward its user
+`/chat`. The Next.js routes verify the Supabase session and forward its user
 ID as `X-User-ID`. They never trust a user ID supplied by the browser. Conversation
 creation configures the Revolutionary War instructions through AI Infra's
 `PUT /me/system-prompt` endpoint rather than adding them to every user message.
@@ -31,31 +31,35 @@ Replies display as Markdown. Backend calls have a 60-second timeout and a 2 MiB
 response limit. Switching chats cancels the browser request and prevents late
 answers from appearing in another chat.
 
-## Browser-only history (temporary)
+## Synced history with a browser cache
 
-Saved conversations, messages, custom titles, and appearance preferences use
-`localStorage`, keyed by the signed-in Supabase user. Opening an older conversation
-reads its locally saved messages immediately; the UI makes no AI history GET
-requests on sign-in, reload, rename, deletion, or chat selection.
+After sign-in, the page loads the per-account browser cache immediately and merges
+`GET /conversations` into it. Opening an AI-backed chat fetches
+`GET /conversations/{id}/messages` while cached messages remain visible. Only
+education conversations are listed. The catalog syncs automatically after sign-in; messages refresh when a conversation
+is opened. There are no manual sync or refresh controls.
 
-All chats can be renamed or deleted in this browser. Deletion removes the local
-record permanently, after confirmation; it does not delete an AI Infra record.
-The same origin/browser/profile must be used to see these chats. Other browsers,
-ports, devices, or cleared browser storage do not share this history. A history
-read failure preserves the existing stored value and keeps new chats in memory.
+Sync preserves local chat IDs, renamed titles, unsent questions, fallback answers,
+and local practice chats. Matching remote turns are reconciled in sequence without
+repeating the visible question; app-generated explanation prefixes are removed
+from questions restored on another device. Generated prompts/raw replies are kept
+as matching metadata in the local cache for newly sent turns, not in public shares.
+Failed/pending remote assistant output is not rendered as a completed answer.
+A remotely pending turn blocks sending until its status is checked by reopening
+the conversation, avoiding accidental retry.
 
-Existing local messages and backend conversation IDs are retained. Metadata-only
-entries from the earlier remote sync have no locally saved messages to display;
-the UI explains this instead of showing a fake conversation. Older practice chats
-remain read-only. Opening a cached chat never requires AI Infra, but sending a
-follow-up still uses its backend conversation ID. A missing backend conversation
-can still return 404 when sending; it cannot be recovered by local storage.
+Network failures retain cached conversations and show a status message. Switching
+chats or accounts cancels outstanding reads, and late results are ignored. New
+questions are disabled while the selected chat's messages are being restored.
 
-The AI history routes, client helpers, and reconciliation code remain available
-for future integration, separate from `src/lib/browserHistory.mjs`. Before
-reconnecting synchronization, decide how local deletions, custom titles, and
-unsent messages should merge; do not silently restore deleted local records.
-Document retrieval, citations, and incremental rendering remain separate work.
+Renames and deletion remain browser-only. Deletion records the backend ID in a
+per-account browser hide list so sync does not restore that chat locally. It does
+not delete the server record or hide it on other devices. Clearing browser storage
+also clears these local overrides. Local fallback answers, unsent questions, and
+practice-only chats are not uploaded by history synchronization; only messages
+already stored by AI Infra can be restored on another device. Cached history and
+appearance preferences remain in user-scoped localStorage. A damaged cache is
+not overwritten; conversations can still be loaded into memory from the backend.
 
 ## Checks
 
@@ -92,9 +96,11 @@ browser session works; complete the signed-in walkthrough below as well.
 7. Rename a saved AI chat and reload; its title and messages remain available.
 8. Delete a saved AI chat, reload, and verify it stays deleted in this browser.
 9. Open a cached chat while AI Infra is unavailable: local messages still display.
-   In Network, opening chats must not request `/api/conversations` or `/messages`.
-10. Sign in as another user: their history must be separate. Another browser or
-    port does not share this browser's local history.
+   In Network, the history request can fail without clearing the cached messages.
+10. Sign in to the same account in another browser: server conversations should
+    appear and their messages should load on selection. Local-only fallback turns
+    stay in the original browser. Sign in as a different user: histories must stay
+    separate, even if an earlier account's request finishes late.
 11. A signed-out GET to history/messages or POST to either API route must return JSON with HTTP 401.
 
 The backend does not document an idempotency key. Retrying a request after a lost
@@ -106,3 +112,28 @@ visible user question, but cannot guarantee exactly-once backend processing.
 Set `AI_MAINTENANCE_MODE=true` in the server environment and restart/redeploy to pause outgoing AI calls. The chat shows a maintenance notice; browser history remains accessible and chat uses local backup answers with a limited-capabilities notice. Questions beyond the prepared material receive an outage notice. Set it to `false` and restart/redeploy to restore chat. Open tabs check the maintenance setting every 30 seconds and automatically resume AI requests once maintenance is disabled and any cooldown has expired. The status endpoint only reads configuration and does not call the AI backend.
 
 Failed service requests fall back to prepared answers and trigger a 30-second cooldown on AI requests across chats, extended by upstream `Retry-After` for 429/503 responses (up to 24 hours). There are no automatic AI retries. This cooldown is a UX safeguard, not an enforceable usage quota; server-side rate limits and cloud cost controls are still needed. Prepared answers require the frontend to be reachable; this does not add full offline/PWA support.
+
+### Public chat links
+
+Share creates a read-only snapshot of the current browser-stored conversation.
+Recipients open `/share#<encoded-snapshot>` without an account or AI service.
+The public viewer bypasses Supabase session lookup and makes no backend requests.
+Only the title and displayed conversation messages are included, not account IDs,
+conversation IDs, credentials, or the welcome message. Text export remains available.
+
+The snapshot is encoded in the URL fragment (not encrypted). Anyone with the link
+can read, forward, or modify their copy. It cannot be revoked or updated after
+sharing. The fragment is not sent in the HTTP request to QuagBot. The viewer does
+not store the snapshot in browser history storage, and raw HTML is not rendered.
+Sharing may appear in the recipient's normal browser URL history.
+
+Links are limited to 24,000 fragment characters / 18,000 serialized UTF-8 bytes;
+oversized conversations show an error suggesting Export. Messaging apps may
+impose shorter URL limits. localhost links only work where that host is reachable;
+use the deployed QuagBot site to share with other devices.
+
+Verify by opening a shared link in a signed-out browser, checking that it renders
+without AI requests, and checking that later edits to the original do not change
+the snapshot. Invalid and truncated links should show a clear error. Hosted short
+links, expiration, revocation, and recipient permissions can be added with database
+storage later; they are not provided by this browser-only implementation.

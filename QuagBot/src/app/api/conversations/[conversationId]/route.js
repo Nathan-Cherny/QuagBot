@@ -1,4 +1,6 @@
 import { deleteAIConversation } from "@/lib/ai-backend.mjs";
+import { NextResponse } from 'next/server';
+import { authenticatedRoute } from '@/lib/ai-route';
 
 export const DELETE = authenticatedRoute(async (request, body, userId) => {
   const conversationId = body?.conversationId;

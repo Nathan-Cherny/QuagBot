@@ -10,7 +10,7 @@ try {
   console.log(`Created conversation: ${conversation.id}`);
   for (const message of ['Who commanded the Continental Army during the American Revolutionary War? Answer briefly.', 'What was his role at Yorktown? Answer briefly.']) {
     console.log(`Question: ${message}`);
-    const payload = await callAI('/chat/stream', {
+    const payload = await callAI('/chat', {
       userId, body: { conversation_id: conversation.id, message },
     }, async (response) => {
       const text = await readResponse(response);
