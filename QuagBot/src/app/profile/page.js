@@ -29,6 +29,7 @@ function Profile() {
       setUser({
         name: data.user.user_metadata?.display_name ?? "Student",
         email: data.user.email,
+        id: data.user.id,
         connectedTeacher: null, // TODO: load from the classrooms table
       });
     });
@@ -41,7 +42,7 @@ function Profile() {
   }
 
   if (!user) {
-    return <PageWrapper basic><p>Loading…</p></PageWrapper>;
+    return <PageWrapper basic><p className="text-center">Loading…</p></PageWrapper>;
   }
 
   return (
@@ -57,6 +58,12 @@ function Profile() {
           <div className={cardRow}>
             <span className={rowLabel}>Email</span>
             <span className={rowValue}>{user.email}</span>
+          </div>
+
+
+          <div className={cardRow}>
+            <span className={rowLabel}>ID</span>
+            <span className={rowValue}>{user.id}</span>
           </div>
 
           <div className={cardRow}>
