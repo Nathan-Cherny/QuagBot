@@ -7,7 +7,12 @@ import ChatHistory from "./components/Chat/ChatHistory";
 import MobileHistory from "./components/Chat/MobileHistory";
 import ChatSettings from "./components/Chat/ChatSettings";
 import PageWrapper from "./components/Layout/PageWrapper";
-import { createConversation, sendMessage, listConversations, listMessages } from "../lib/api/chat";
+import {
+  createConversation,
+  sendMessage,
+  listConversations,
+  listMessages,
+} from "../lib/api/chat";
 import { getOutageReply } from "../lib/chat";
 import {
   GeneratePracticeExam,
@@ -16,7 +21,10 @@ import {
 } from "./components/Chat/PracticeExamPDF";
 import { createClient } from "../lib/supabase/client";
 import { browserHistory } from "../lib/browserHistory.mjs";
-import { mergeConversationCatalog, restoreMessages } from "../lib/historySync.mjs";
+import {
+  mergeConversationCatalog,
+  restoreMessages,
+} from "../lib/historySync.mjs";
 import { DEFAULT_PREFERENCES, parsePreferences } from "../lib/chatPreferences";
 
 import { prepareMessage } from "./components/Chat/chatPreferences";
@@ -29,7 +37,7 @@ const INITIAL_MESSAGE = {
 
 function Home() {
   const [isLoading, setIsLoading] = useState(false);
-  const [explanationLevel, setExplanationLevel] = useState('medium');
+  const [explanationLevel, setExplanationLevel] = useState("medium");
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [textSize, setTextSize] = useState(DEFAULT_PREFERENCES.textSize);
   const [font, setFont] = useState(DEFAULT_PREFERENCES.font);
@@ -55,14 +63,15 @@ function Home() {
   const [remotePending, setRemotePending] = useState(false);
 
   const updateChats = useCallback((update) => {
-    const next = typeof update === 'function' ? update(chatsRef.current) : update;
+    const next =
+      typeof update === "function" ? update(chatsRef.current) : update;
     chatsRef.current = next;
     setChats(next);
   }, []);
 
   const refreshHistory = useCallback(async () => {
     const identity = identityRef.current;
-    if (!identity || identity === 'guest') return;
+    if (!identity || identity === "guest") return;
     historyRequest.current?.abort();
     const controller = new AbortController();
     historyRequest.current = controller;
@@ -71,13 +80,18 @@ function Home() {
     try {
       const remote = await listConversations({ signal: controller.signal });
       if (controller.signal.aborted || identityRef.current !== identity) return;
-      updateChats((local) => mergeConversationCatalog(local, remote, hiddenIds.current));
+      updateChats((local) =>
+        mergeConversationCatalog(local, remote, hiddenIds.current),
+      );
     } catch {
       if (!controller.signal.aborted && identityRef.current === identity) {
-        setHistoryError('Could not sync history. Your cached chats are still available.');
+        setHistoryError(
+          "Could not sync history. Your cached chats are still available.",
+        );
       }
     } finally {
-      if (!controller.signal.aborted && identityRef.current === identity) setHistoryLoading(false);
+      if (!controller.signal.aborted && identityRef.current === identity)
+        setHistoryLoading(false);
     }
   }, [updateChats]);
 
@@ -167,9 +181,16 @@ function Home() {
       try {
         saved = browserHistory.load(localStorage, key);
         try {
-          const hidden = JSON.parse(localStorage.getItem(`${key}:hidden`) ?? '[]');
-          if (Array.isArray(hidden)) hiddenIds.current = new Set(hidden.filter((id) => typeof id === 'string'));
-        } catch { /* A damaged hide list must not prevent loading cached messages. */ }
+          const hidden = JSON.parse(
+            localStorage.getItem(`${key}:hidden`) ?? "[]",
+          );
+          if (Array.isArray(hidden))
+            hiddenIds.current = new Set(
+              hidden.filter((id) => typeof id === "string"),
+            );
+        } catch {
+          /* A damaged hide list must not prevent loading cached messages. */
+        }
         setHistoryCanSave(true);
         setStorageError(null);
       } catch {
@@ -259,7 +280,14 @@ function Home() {
       !text.trim()
     )
       return;
-    if (archived || emptyHistory || conversationUnavailable || isRestoring || remotePending) return;
+    if (
+      archived ||
+      emptyHistory ||
+      conversationUnavailable ||
+      isRestoring ||
+      remotePending
+    )
+      return;
     text = text.trim();
     const outgoingText = prepareMessage(text, explanationLevel, isPDF);
     const id = activeChat ?? crypto.randomUUID();
@@ -271,9 +299,7 @@ function Home() {
             id: crypto.randomUUID(),
             role: "user",
             remoteText: outgoingText,
-            text: isPDF
-              ? MAKE_EXAM_MSG
-              : text,
+            text: isPDF ? MAKE_EXAM_MSG : text,
           },
         ];
 
@@ -314,9 +340,27 @@ function Home() {
         backendId = conversation.id;
         saveConversation(id, content, backendId);
       }
+
       let { reply } = await sendMessage(backendId, outgoingText, {
         signal: controller.signal,
       });
+
+      const MOCK_RAG_DATA = {
+        authors: ["Henretta, James A."],
+        institution: "",
+        text: [
+          "After Yorktown, diplomats took two years to conclude a peace treaty. Talks began in Paris in April 1782, but the French and Spanish, still hoping to seize a West Indian island or Gibraltar, stalled for time. Their tactics infuriated American diplomats Benjamin Franklin, John Adams, and John Jay. So the Americans negoti-ated secretly with the British, prepared if necessary to ignore the Treaty of Alliance and sign a separate peace. British ministers were equally eager: Parliament wanted peace, and they feared the loss of a rich sugar island.Consequently, the American diplomats secured extremely favorable terms. In the , signed in September 1783, Great Britain formally recognized American independence and relinquished its claims to lands south of the Great Lakes and east of the Miss-issippi River. The British negotiators did not insist on a separate territory for their Indian allies. “In endeavouring to assist you,” a Wea Indian complained to a British general, “it seems we have wrought our own ruin.” The Cherokees were forced to relinquish claims to 5 million acres — three-quarters of their territory — in treaties with Georgia, the Carolinas, and Virginia, while New York and the Continental Congress pressed the Iroquois and Ohio Indians to cede much of their land as well. British officials, like those of other early modern empires, found it easy to abandon allies they had never really understood (America Compared, p. 197).The Paris treaty also granted Americans fishing rights off Newfoundland and Nova Scotia, prohibited the British from “carrying away any negroes or other property,” and guaranteed freedom of navigation on the Mississippi to American citizens “forever.” In return, the American government allowed British mer-chants to pursue legal claims for prewar debts and encouraged the state legislatures to return confiscated property to Loyalists and grant them citizenship.In the Treaty of Versailles, signed simultaneously, Britain made peace with France and Spain. Neither American ally gained very much. Spain reclaimed Florida from Britain, but not the strategic fortress at Gibraltar. France received the Caribbean island of Tobago, small consolation for a war that had sharply raised taxes and quadrupled France’s national debt. Just six years later, cries for tax relief and political liberty would spark the French Revolution. Only Americans profited handsomely; the treaties gave them indepen-dence and access to the trans-Appalachian west.When the Patriots declared independence, they con-fronted the issue of political authority. “Which of us shall be the rulers?” asked a Philadelphia newspaper. The question was multifaceted. Would power reside in the national government or the states? Who would control the new republican institutions: traditional elites or average citizens? Would women have greater political and legal rights? What would be the status of slaves in the new republic?",
+        ],
+        citation:
+          "Henretta, James A., Eric Hinderaker, Rebecca Edwards, and Robert O. Self. America’s History, For the AP® Course. 8th ed., Bedford/St. Martin’s, 2014",
+        title: "America's History, For the AP* Course",
+        header: "Diplomatic Triumph",
+        date_published: "2014-01-10T05:00:00.000Z",
+        date_added: "2026-09-13T23:50:21.443Z",
+        start_page: 195,
+        referenced_text: "After Yorktown, diplomats took two years to conclude a peace treaty."
+      };
+
       if (controller.signal.aborted) return;
       if (typeof reply !== "string" || !reply.trim()) {
         throw new Error("Empty response");
@@ -324,12 +368,11 @@ function Home() {
       const rawReply = reply;
       if (isPDF) {
         const exam = parseMarkdownJson(reply);
-        console.log(exam)
+        console.log(exam);
         if (
-          (
           // exam.isValid &&
           typeof exam.title === "string" &&
-          typeof exam.text === "string")
+          typeof exam.text === "string"
         ) {
           reply = "```json\n" + JSON.stringify(exam) + "\n```";
         } else {
@@ -340,7 +383,14 @@ function Home() {
 
       const completed = [
         ...content,
-        { id: crypto.randomUUID(), role: "quagbot", text: reply, remoteText: rawReply, source: "ai" },
+        {
+          id: crypto.randomUUID(),
+          role: "quagbot",
+          text: reply,
+          remoteText: rawReply,
+          source: "ai",
+          RAG_info: MOCK_RAG_DATA
+        },
       ];
       setMessages(completed);
       saveConversation(id, completed, backendId);
@@ -411,36 +461,61 @@ function Home() {
     setConversationUnavailable(false);
     const cached = chatsRef.current.find((item) => item.id === chat.id) ?? chat;
     const last = cached.content.at(-1);
-    setFailedQuestion(last?.role === 'user' ? last.text : null);
+    setFailedQuestion(last?.role === "user" ? last.text : null);
     setMessages([...cached.content]);
     setActiveChat(chat.id);
     setChatVersion((version) => version + 1);
     setHistoryOpen(false);
-    if (!cached.backendConversationId || identityRef.current === 'guest') return;
+    if (!cached.backendConversationId || identityRef.current === "guest")
+      return;
     const identity = identityRef.current;
     const controller = new AbortController();
     messageRequest.current = controller;
     setIsRestoring(true);
     try {
-      const records = await listMessages(cached.backendConversationId, { signal: controller.signal });
-      if (controller.signal.aborted || identityRef.current !== identity || activeChatRef.current !== chat.id) return;
+      const records = await listMessages(cached.backendConversationId, {
+        signal: controller.signal,
+      });
+      if (
+        controller.signal.aborted ||
+        identityRef.current !== identity ||
+        activeChatRef.current !== chat.id
+      )
+        return;
       const latest = chatsRef.current.find((item) => item.id === chat.id);
       if (!latest) return;
       const restored = restoreMessages(records, latest.content);
-      updateChats((previous) => previous.map((item) => item.id === chat.id ? { ...item, content: restored.messages } : item));
+      updateChats((previous) =>
+        previous.map((item) =>
+          item.id === chat.id ? { ...item, content: restored.messages } : item,
+        ),
+      );
       setMessages(restored.messages);
       setRemotePending(restored.pending);
       const tail = restored.messages.at(-1);
-      setFailedQuestion(!restored.pending && tail?.role === 'user' ? tail.text : null);
+      setFailedQuestion(
+        !restored.pending && tail?.role === "user" ? tail.text : null,
+      );
     } catch (error) {
-      if (!controller.signal.aborted && identityRef.current === identity && activeChatRef.current === chat.id) {
-        setMessageSyncError(error.status === 404
-          ? 'This conversation is unavailable on the server. Cached messages are kept.'
-          : 'Could not sync messages. Showing the browser cache.');
+      if (
+        !controller.signal.aborted &&
+        identityRef.current === identity &&
+        activeChatRef.current === chat.id
+      ) {
+        setMessageSyncError(
+          error.status === 404
+            ? "This conversation is unavailable on the server. Cached messages are kept."
+            : "Could not sync messages. Showing the browser cache.",
+        );
         setConversationUnavailable(error.status === 404);
       }
     } finally {
-      if (!controller.signal.aborted && identityRef.current === identity && activeChatRef.current === chat.id) setIsRestoring(false);
+      if (
+        !controller.signal.aborted &&
+        identityRef.current === identity &&
+        activeChatRef.current === chat.id
+      )
+        setIsRestoring(false);
     }
   }
 
@@ -455,8 +530,16 @@ function Home() {
       return;
     if (chat.backendConversationId) {
       hiddenIds.current.add(chat.backendConversationId);
-      try { localStorage.setItem(`${storageKey}:hidden`, JSON.stringify([...hiddenIds.current])); }
-      catch { setStorageError('This chat is hidden for this visit, but could reappear after reload.'); }
+      try {
+        localStorage.setItem(
+          `${storageKey}:hidden`,
+          JSON.stringify([...hiddenIds.current]),
+        );
+      } catch {
+        setStorageError(
+          "This chat is hidden for this visit, but could reappear after reload.",
+        );
+      }
     }
     if (id === activeChat) startNewChat();
     updateChats((previous) => browserHistory.remove(previous, id));
@@ -474,7 +557,9 @@ function Home() {
   );
 
   const emptyHistory = Boolean(
-    selectedChat && !selectedChat.backendConversationId && selectedChat.content.length === 0,
+    selectedChat &&
+    !selectedChat.backendConversationId &&
+    selectedChat.content.length === 0,
   );
 
   const history = (
@@ -512,14 +597,17 @@ function Home() {
         emptyHistory={emptyHistory}
         maintenance={maintenance}
         cooldownSeconds={cooldownSeconds}
-        sendDisabled={emptyHistory || conversationUnavailable || isRestoring || remotePending}
+        sendDisabled={
+          emptyHistory ||
+          conversationUnavailable ||
+          isRestoring ||
+          remotePending
+        }
         messages={messages}
         title={
           chats.find((chat) => chat.id === activeChat)?.title ?? "New chat"
         }
-        date={
-          chats.find((chat) => chat.id === activeChat)?.updatedAt ?? ""
-        }
+        date={chats.find((chat) => chat.id === activeChat)?.updatedAt ?? ""}
         isLoading={isLoading}
         error={
           !archived && failedQuestion

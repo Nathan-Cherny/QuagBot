@@ -82,7 +82,7 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
         <div className="min-h-0 flex-1 overflow-y-auto p-space-5 max-[900px]:p-space-3 [overflow-anchor:none]" ref={scrollRef}>
           <div ref={contentRef} className="flex flex-col gap-space-3">
             {messages.map((message) => (
-              <ChatMessage key={message.id} role={message.role} text={message.text} isPDF={message.isPDF} responseStyle={responseStyle} animateWelcome={message.id === 'welcome' && !messages.some((item) => item.role === 'user')} />
+              <ChatMessage key={message.id} role={message.role} text={message.text} isPDF={message.isPDF} RAG_info={message.RAG_info} responseStyle={responseStyle} animateWelcome={message.id === 'welcome' && !messages.some((item) => item.role === 'user')} />
             ))}
 
             {!sendDisabled && !messages.some((message) => message.role === 'user') && (
