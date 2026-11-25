@@ -5,7 +5,7 @@ import { chatAvatar, chatMessageRow } from '../ui/styles';
 import WelcomeText from './WelcomeText';
 import MarkdownMessage from './MarkdownMessage';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import PDFDocument, { parseMarkdownJson } from './PracticeExamPDF';
+import PDFDocument, { COULD_NOT_GEN, parseMarkdownJson } from './PracticeExamPDF';
 
 const BOT_AVATAR_SRC = '/QuagBotLogo.png';
 
@@ -17,7 +17,7 @@ const BOT_CONTENT = 'min-w-0 max-w-[60%] max-[900px]:max-w-[85%]';
 function ChatMessage({ role, text = "", responseStyle, isPDF, animateWelcome = false }) {
   const isUser = role === 'user';
   const { fontSize, fontFamily } = responseStyle
-  
+
   if (text.startsWith("```json")) { text = parseMarkdownJson(text); isPDF = true }
   
   if (isUser) return (
@@ -39,7 +39,7 @@ function ChatMessage({ role, text = "", responseStyle, isPDF, animateWelcome = f
       <div className={BOT_CONTENT}>
         <div className={BOT_BUBBLE} style={responseStyle}>
 
-          {isPDF && <PDFDownloadLink
+          {isPDF && text.title != COULD_NOT_GEN && <PDFDownloadLink
             className='hover:scale-105 border p-1 bg-white/20 shadow-xl'
             document={
               <PDFDocument title={text.title} textContent={text.text} />

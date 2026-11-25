@@ -15,12 +15,15 @@ const EXAM_FORMAT_EXAMPLE = JSON.stringify(
   2,
 )
 
+export const COULD_NOT_GEN = "Could not generate practice exam - need more content in conversation"
+
 const EXAM_FORMAT_INSTRUCTIONS = [
   "Respond with ONLY a single JSON object inside one ```json code block. Do not write anything before or after the code block.",
   'The object must have exactly three keys and no others: "title" (string, the exam title), "text" (string, the entire exam written in Markdown: every question numbered in order with its answer choices, followed by an "Answer Key" section at the end), and "isValid" (boolean, true).',
   'Put the whole exam, including the answer key, inside the single "text" string. Do not add separate keys such as "quiz_title", "questions", or "answer_key".',
   `Use exactly this shape:\n\`\`\`json\n${EXAM_FORMAT_EXAMPLE}\n\`\`\``,
-  'If you do not have sufficient information to write an exam, respond in the same format with {"title": "", "text": "", "isValid": false}.',
+  `If you do not have sufficient information to write an exam, respond in the same format with {"title": "${COULD_NOT_GEN}", "text": "", "isValid": false}.`,
+  "Exam topics: "
 ].join("\n")
 
 // Create styles similar to React Native StyleSheet
