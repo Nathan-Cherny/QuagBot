@@ -134,7 +134,7 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
       await response.body?.cancel();
       if (
         response.status === 404 &&
-        (path === "/chat/stream" ||
+        (path === "/chat" ||
           /^\/conversations\/[^/]+\/messages$/.test(path))
       ) {
         throw new AIError(
@@ -213,6 +213,14 @@ export async function readJSONResponse(response) {
   }
 }
 
+export function sendAIMessage({ userId, conversationId, message, signal }) {
+  return callAI('/chat', {
+    userId,
+    body: { conversation_id: conversationId, message },
+    signal,
+  }, async (response) => parseChatResponse(await readResponse(response), response.headers.get('content-type') ?? ''));
+}
+
 export async function listAIConversations({ userId, signal }) {
   const records = await callAI(
     "/conversations",
@@ -228,7 +236,7 @@ export async function listAIConversations({ userId, signal }) {
   ) {
     throw new AIError("The AI service returned invalid conversation history.");
   }
-  return records.map((record) => ({
+  return records.filter((record) => record.domain === "education").map((record) => ({
     id: record.id,
     title: record.title,
     updated_at: record.updated_at,
