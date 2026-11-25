@@ -1,7 +1,10 @@
 import UserAvatar from '../User/UserAvatar';
-import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, Download, Watch, WatchIcon, ExpandIcon } from 'lucide-react';
-import { chatAvatar, chatMessageRow } from '../ui/styles';
+import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, Copy, Download, Watch, WatchIcon, ExpandIcon, X } from 'lucide-react';
+import { chatAvatar, chatMessageRow, iconButton } from '../ui/styles';
+import { PILL_BUTTON } from './ChatSettings';
+import { locateHighlight, sectionParagraphs } from '../../../lib/ragHighlight.mjs';
 import WelcomeText from './WelcomeText';
 import MarkdownMessage from './MarkdownMessage';
 import { PDFDownloadLink } from '@react-pdf/renderer';
@@ -63,7 +66,7 @@ function ChatMessage({ role, text = "", responseStyle, isPDF, RAG_info, animateW
       </div>
       {isUser && <UserAvatar className={chatAvatar} />}
       
-      {referencesOpen && <RAGReferences RAG_info={RAG_info} setReferencesOpen={setReferencesOpen} />}
+      {referencesOpen && <RAGReferences RAG_info={RAG_info} setReferencesOpen={setReferencesOpen} textStyle={{ fontSize, fontFamily }} />}
     </div>
   );
 }
@@ -81,13 +84,105 @@ function RAGReferencesSmall({ RAG_info, setReferencesOpen }) {
   )
 }
 
-function RAGReferences({RAG_info, setReferencesOpen}){
-  return (
-    <div>
-      {JSON.stringify(RAG_info)}
-      <button onClick={() => {setReferencesOpen(false)}}>Close</button>
-    </div>
-  )
+const HIGHLIGHT = 'rounded-[3px] bg-yellow-200 px-[2px] text-black underline decoration-amber-500 decoration-2 underline-offset-2 [box-decoration-break:clone]';
+
+function publishedYear(value) {
+  const year = new Date(value).getFullYear();
+  return Number.isNaN(year) ? null : year;
+}
+
+// Overlay (same backdrop and card treatment as ChatSettings) showing the textbook section the
+// answer drew on, with the exact passage the AI used (`referenced_text`) highlighted inside it.
+function RAGReferences({ RAG_info, setReferencesOpen, textStyle }) {
+  const titleId = useId();
+  const closeRef = useRef(null);
+  const highlightRef = useRef(null);
+  const close = () => setReferencesOpen(false);
+
+  const { title, authors, institution, header, start_page, citation, date_published, referenced_text } = RAG_info;
+  const paragraphs = sectionParagraphs(RAG_info.text);
+  const hit = locateHighlight(paragraphs, referenced_text);
+  const authorList = Array.isArray(authors) ? authors.filter(Boolean).join('; ') : '';
+  const year = date_published ? publishedYear(date_published) : null;
+  const byline = [authorList, institution, year].filter(Boolean).join(' · ');
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    closeRef.current?.focus();
+    highlightRef.current?.scrollIntoView({ block: 'center' });
+    function onKeyDown(event) {
+      if (event.key === 'Escape') setReferencesOpen(false);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus?.();
+    };
+  }, [setReferencesOpen]);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/30"
+      onClick={(event) => { if (event.target === event.currentTarget) close(); }}
+    >
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="flex max-h-[90vh] w-[720px] max-w-[92%] flex-col overflow-hidden rounded-[12px] bg-surface text-black">
+        <div className="flex items-start justify-between gap-space-4 border-b border-border px-space-5 pt-space-5 pb-space-4">
+          <div className="min-w-0">
+            <p className="mb-space-1 text-[0.75rem] font-semibold tracking-[0.08em] text-text-muted">Source used for this answer</p>
+            <h2 id={titleId} className="text-[24px] leading-[118%] font-medium tracking-[-0.24px] [overflow-wrap:anywhere] max-[1024px]:text-[20px]">{title}</h2>
+            {byline && <p className="mt-space-1 text-[0.9rem] text-text-muted [overflow-wrap:anywhere]">{byline}</p>}
+          </div>
+          <button type="button" ref={closeRef} className={`${iconButton} shrink-0 rounded focus-visible:outline-2 focus-visible:outline-important-border`} onClick={close} aria-label="Close references" title="Close">
+            <X size={22} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-space-5 py-space-4">
+          <div className="mb-space-2 flex items-baseline justify-between gap-space-3">
+            {header && <h3 className="text-[1.15rem] leading-[125%] font-medium [overflow-wrap:anywhere]">{header}</h3>}
+            {start_page != null && <span className="ml-auto text-[0.82rem] whitespace-nowrap text-text-muted">Section starts on p. {start_page}</span>}
+          </div>
+
+          <p className="mb-space-4 flex flex-wrap items-center gap-x-space-2 gap-y-space-1 text-[0.85rem] text-text-muted">
+            <span><mark className={HIGHLIGHT}>Highlighted</mark> text is the part QuagBot used to write its answer.</span>
+            {hit && (
+              <button type="button" className="cursor-pointer rounded px-space-1 text-accent underline hover:brightness-90 focus-visible:outline-2 focus-visible:outline-important-border" onClick={() => highlightRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })}>
+                Jump to highlight
+              </button>
+            )}
+          </p>
+
+          {!hit && typeof referenced_text === 'string' && referenced_text.trim() && (
+            <blockquote className="mb-space-4 rounded-card border-l-4 border-amber-500 bg-yellow-100 p-space-3 text-[0.9rem]">
+              <p className="mb-space-1 text-[0.8rem] font-semibold text-text-muted">We couldn&apos;t locate this passage in the section text below:</p>
+              <mark className={HIGHLIGHT}>{referenced_text}</mark>
+            </blockquote>
+          )}
+
+          <div className="flex flex-col gap-space-3 leading-[1.6] [overflow-wrap:anywhere]" style={textStyle}>
+            {paragraphs.length === 0 && <p className="text-text-muted">The text of this section isn&apos;t available.</p>}
+            {paragraphs.map((paragraph, index) => hit && hit.section === index ? (
+              <p key={index}>
+                {paragraph.slice(0, hit.start)}
+                <mark ref={highlightRef} className={HIGHLIGHT}>{paragraph.slice(hit.start, hit.end)}</mark>
+                {paragraph.slice(hit.end)}
+              </p>
+            ) : <p key={index}>{paragraph}</p>)}
+          </div>
+        </div>
+
+        <div className="border-t border-border px-space-5 pt-space-3 pb-space-5">
+          {citation && (
+            <p className="mb-space-3 text-[0.8rem] leading-[1.4] text-text-muted [overflow-wrap:anywhere]">
+              <span className="font-semibold">Citation: </span>{citation}
+            </p>
+          )}
+          <button type="button" className={PILL_BUTTON} onClick={close}>Close</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 function Buttons({ text }) {
