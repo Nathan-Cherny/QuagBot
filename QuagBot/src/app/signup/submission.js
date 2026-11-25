@@ -22,6 +22,18 @@ export async function handleSubmit(
     setError(error.message);
     return;
   }
+  if (accountType === "Teacher") {
+    if (data.session) {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        setError(`Account created, but the teacher session could not be cleared: ${signOutError.message}`);
+        return;
+      }
+    }
+    router.push("/teacherdash");
+    router.refresh();
+    return;
+  }
   /* Teacher share-code loading and notification will be implemented later.
   if (accountType === "Teacher") {
     let shareCode = data.user?.user_metadata?.teacher_share_code;
