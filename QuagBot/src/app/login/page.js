@@ -34,11 +34,21 @@ function LogIn() {
     setSubmitting(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     setSubmitting(false);
     if (error) {
       setError(error.message);
+      return;
+    }
+    if (data.user?.user_metadata?.account_type === "teacher") {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        setError(`Could not clear the teacher session: ${signOutError.message}`);
+        return;
+      }
+      router.push("/teacherdash");
+      router.refresh();
       return;
     }
     router.push("/");
