@@ -29,6 +29,8 @@ function Profile() {
       setUser({
         name: data.user.user_metadata?.display_name ?? "Student",
         email: data.user.email,
+        role: data.user.user_metadata?.account_type,
+        teacherShareCode: data.user.user_metadata?.teacher_share_code,
         connectedTeacher: null, // TODO: load from the classrooms table
       });
     });
@@ -59,22 +61,31 @@ function Profile() {
             <span className={rowValue}>{user.email}</span>
           </div>
 
-          <div className={cardRow}>
-            <span className={rowLabel}>Connected teacher</span>
-            <span className={rowValueConnect}>
-              {user.connectedTeacher ?? "Not connected"}
-              {!user.connectedTeacher && (
-                <button
-                  type="button"
-                  className={iconButton}
-                  title="Connect to your teacher"
-                  aria-label={"Connect"}
-                >
-                  <PlugZap size={16} />
-                </button>
-              )}
-            </span>
-          </div>
+          {user.role === "teacher" && (
+            <div className={cardRow}>
+              <span className={rowLabel}>Teacher share code</span>
+              <span className={rowValue}>{user.teacherShareCode ?? "Unavailable"}</span>
+            </div>
+          )}
+
+          {user.role !== "teacher" && (
+            <div className={cardRow}>
+              <span className={rowLabel}>Connected teacher</span>
+              <span className={rowValueConnect}>
+                {user.connectedTeacher ?? "Not connected"}
+                {!user.connectedTeacher && (
+                  <button
+                    type="button"
+                    className={iconButton}
+                    title="Connect to your teacher"
+                    aria-label={"Connect"}
+                  >
+                    <PlugZap size={16} />
+                  </button>
+                )}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className={buttonStack}>
