@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { AIError, callAI, createAIConversation, listAIConversations, listAIDocuments, listAIMessages, parseChatResponse, readResponse, sendAIMessage, uploadAIPDF } from '../src/lib/ai-backend.mjs';
+import { AIError, callAI, createAIConversation, listAIConversations, listAIDocuments, listEducationSources, listAIMessages, parseChatResponse, readResponse, sendAIMessage, uploadAIPDF } from '../src/lib/ai-backend.mjs';
 
 const completion = 'data: {"status":"completed","response":{"reply":"Washington commanded the Continental Army."}}\n\n';
 
@@ -243,4 +243,64 @@ test('uploads a PDF as education multipart and preserves processing fields', asy
     id: 'uploaded-id', filename: 'Yorktown.pdf',
     status: 'uploaded', embedding_status: 'completed', chunk_count: 1,
   });
+});
+
+test('validates the citation payload for a selected PDF', async (t) => {
+  const documentId = '11111111-2222-4333-8444-555555555555';
+  const citation = {
+    number: 1, document_id: documentId, filename: 'Notes.pdf',
+    page_number: 7, section_name: null,
+  };
+  const reply = 'Printed materials [1].';
+  let citations = [citation];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    assert.equal(JSON.parse(options.body).document_id, documentId);
+    assert.equal(options.headers['X-User-ID'], 'student');
+    return Response.json({ reply, citations });
+  });
+  const input = { userId: 'student', conversationId: 'existing', message: 'What did it tax?', documentId };
+  const priorURL = process.env.AI_API_URL;
+  const priorMaintenance = process.env.AI_MAINTENANCE_MODE;
+  process.env.AI_API_URL = 'https://rawberry.example';
+  process.env.AI_MAINTENANCE_MODE = 'false';
+  t.after(() => {
+    if (priorURL === undefined) delete process.env.AI_API_URL;
+    else process.env.AI_API_URL = priorURL;
+    if (priorMaintenance === undefined) delete process.env.AI_MAINTENANCE_MODE;
+    else process.env.AI_MAINTENANCE_MODE = priorMaintenance;
+  });
+  assert.deepEqual(await sendAIMessage(input), { reply, citations });
+  for (const invalid of [undefined, [{ ...citation, page_number: 0 }], [{ ...citation, document_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' }]]) {
+    citations = invalid;
+    await assert.rejects(sendAIMessage(input), { status: 422 });
+  }
+});
+
+test('education sources use the authenticated RAWBerry API', async (t) => {
+  const priorURL = process.env.AI_API_URL;
+  const priorMaintenance = process.env.AI_MAINTENANCE_MODE;
+  process.env.AI_API_URL = 'https://rawberry.example';
+  process.env.AI_MAINTENANCE_MODE = 'false';
+  t.after(() => {
+    if (priorURL === undefined) delete process.env.AI_API_URL;
+    else process.env.AI_API_URL = priorURL;
+    if (priorMaintenance === undefined) delete process.env.AI_MAINTENANCE_MODE;
+    else process.env.AI_MAINTENANCE_MODE = priorMaintenance;
+  });
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const { pathname } = new URL(url);
+    requests.push([pathname, options.method, options.headers['X-User-ID'], options.body]);
+    if (pathname === '/uploadedu') {
+      return Response.json([{
+        id: 'textbook', filename: 'notes.json', user_id: 'corpus:education',
+        metadata: { education: { title: 'The Revolution', authors: ['A. Author'], citation: 'Author, 2026.' } },
+      }]);
+    }
+    assert.fail(`Unexpected RAWBerry path: ${pathname}`);
+  });
+  assert.deepEqual(await listEducationSources({ userId: 'student' }), [{
+    id: 'textbook', filename: 'notes.json', title: 'The Revolution', authors: ['A. Author'], citation: 'Author, 2026.',
+  }]);
+  assert.deepEqual(requests, [['/uploadedu', 'GET', 'student', undefined]]);
 });

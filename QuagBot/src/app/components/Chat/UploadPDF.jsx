@@ -3,6 +3,8 @@
 import { CloudUpload, FileText, RefreshCw, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { uploadPDF } from "../../../lib/api/documents"
+import { DocumentDetails, DocumentStatus } from "../Documents/DocumentList"
 
 // Pill buttons match the "Chat Settings" dialog (see ChatSettings.jsx).
 const PILL = 'cursor-pointer rounded-full border border-black px-space-4 py-space-2 w-full hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100'
@@ -17,14 +19,6 @@ function formatSize(bytes) {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-export default function UploadPDFButton({ setUserPDFOpen }) {
-    return (
-        <button type="button" aria-label="Upload PDF" onClick={() => setUserPDFOpen(true)} className="bg-linear-to-r border from-teal-500/50 to-blue-500/50 p-1 rounded-4xl m-auto h-full cursor-pointer hover:scale-105" title="Upload PDF To QuagBot">
-            <CloudUpload size={22} />
-        </button>
-    )
 }
 
 export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onUploaded }) {
@@ -102,18 +96,7 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onUploaded }) {
         setUploading(true)
         setError('')
         try {
-            const body = new FormData()
-            body.append('files', selection.file)
-            const response = await fetch('/api/documents', {
-                method: 'POST',
-                body,
-                signal: controller.signal,
-            })
-            const document = await response.json().catch(() => null)
-            if (!response.ok || !document?.id) {
-                const fallback = response.status === 413 ? 'The PDF upload must be under 10 MB.' : 'Could not upload the PDF. Please try again.'
-                throw new Error(document?.error || fallback)
-            }
+            const document = await uploadPDF(selection.file, { signal: controller.signal })
             if (!controller.signal.aborted) {
                 setResult(document)
                 onUploaded?.(document)
@@ -203,11 +186,8 @@ export function UploadPDFDialog({ setUserPDFOpen, userPDFOpen, onUploaded }) {
                 {result && (
                     <div className="mt-space-3 rounded-card border border-border p-space-3">
                         <p role="status" className="font-medium">PDF uploaded.</p>
-                        <dl className="mt-space-2 grid gap-space-2 text-sm sm:grid-cols-3">
-                            <div><dt>Processing status</dt><dd>{result.status ?? 'Unavailable'}</dd></div>
-                            <div><dt>Embedding status</dt><dd>{result.embedding_status ?? 'Unavailable'}</dd></div>
-                            <div><dt>Chunk count</dt><dd>{result.chunk_count ?? 'Unavailable'}</dd></div>
-                        </dl>
+                        <div className="mt-space-2"><DocumentStatus document={result} /></div>
+                        <DocumentDetails document={result} />
                         {!onUploaded && <Link href="/documents" className="mt-space-2 inline-block underline">View Documents</Link>}
                     </div>
                 )}

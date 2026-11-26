@@ -88,3 +88,23 @@ test('keeps deletion errors available to the history UI', async (t) => {
     Response.json({ error: 'Try again later.' }, { status: 503 }));
   await assert.rejects(deleteConversation('server-id'), { status: 503, message: 'Try again later.' });
 });
+
+test('sends the selected PDF ID and preserves citations from streamed completion', async (t) => {
+  const documentId = '11111111-2222-4333-8444-555555555555';
+  const citations = [{
+    number: 1, document_id: documentId, filename: 'Notes.pdf',
+    page_number: 7, section_name: 'The Stamp Act',
+  }];
+  t.mock.method(globalThis, 'fetch', async (path, options) => {
+    assert.equal(path, '/api/messages');
+    assert.deepEqual(JSON.parse(options.body), {
+      conversationId: 'existing', message: 'What did it tax?', documentId,
+    });
+    return new Response(JSON.stringify({ type: 'completed', reply: 'Printed materials [1].', citations }) + '\n', {
+      headers: { 'Content-Type': 'application/x-ndjson' },
+    });
+  });
+  assert.deepEqual(await sendConversationMessage({
+    conversationId: 'existing', message: 'What did it tax?', documentId,
+  }), { reply: 'Printed materials [1].', citations });
+});

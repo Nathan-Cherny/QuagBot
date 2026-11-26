@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isDocumentId } from "../lib/pdfCitations.mjs";
 import ChatWindow from "./components/Chat/ChatWindow";
 import Sidebar from "./components/Layout/Sidebar";
 import ChatHistory from "./components/Chat/ChatHistory";
@@ -27,10 +28,11 @@ const INITIAL_MESSAGE = {
   text: "Hi! I'm QuagBot, your Revolutionary War study companion.\n\nWhat would you like to learn today? Choose a question below or type your own.",
 };
 
-function Home() {
+function Home({ activity, activityUserId, activityNotice } = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [streamProgress, setStreamProgress] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [explanationLevel, setExplanationLevel] = useState('medium');
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [textSize, setTextSize] = useState(DEFAULT_PREFERENCES.textSize);
@@ -43,6 +45,7 @@ function Home() {
   const [historyCanSave, setHistoryCanSave] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chatVersion, setChatVersion] = useState(0);
+  const [showActivityDraft, setShowActivityDraft] = useState(true);
   const pendingReply = useRef(null);
   const chatsRef = useRef([]);
   const identityRef = useRef(null);
@@ -52,7 +55,7 @@ function Home() {
   const deleteRequest = useRef(null);
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
-  const [initialDraft, setInitialDraft] = useState("");
+  const [initialDocument, setInitialDocument] = useState(null);
   const hiddenIds = useRef(new Set());
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState(null);
@@ -140,12 +143,15 @@ function Home() {
       deleteRequest.current?.controller.abort();
       deleteRequest.current = null;
       setDeletingId(null);
+      setShowActivityDraft(user?.id === activityUserId);
       setDeleteError(null);
       const url = new URL(window.location.href);
-      const documentName = url.searchParams.get("askDocument")?.trim().slice(0, 255);
-      setInitialDraft(documentName ? `What are the main ideas in “${documentName}”?` : "");
+      const filename = url.searchParams.get("askDocument");
+      const documentId = url.searchParams.get("askDocumentId");
+      setInitialDocument(filename && isDocumentId(documentId) ? { id: documentId, filename } : null);
       if (url.searchParams.has("askDocument")) {
         url.searchParams.delete("askDocument");
+        url.searchParams.delete("askDocumentId");
         window.history.replaceState(window.history.state, "", url);
       }
       historyRequest.current?.abort();
@@ -219,7 +225,7 @@ function Home() {
       messageRequest.current?.abort();
       identityRef.current = null;
     };
-  }, [refreshHistory, updateChats]);
+  }, [activityUserId, refreshHistory, updateChats]);
 
   useEffect(() => {
     if (!storageKey || !historyCanSave) return;
@@ -269,7 +275,7 @@ function Home() {
     });
   }
 
-  async function sendTextToBot(text, isRetry = false, isPDF = false) {
+  async function sendTextToBot(text, isRetry = false, isPDF = false, documentId, linkedDocument) {
     if (
       !storageKey ||
       pendingReply.current ||
@@ -279,13 +285,19 @@ function Home() {
       return;
     if (isRestoring || remotePending || (deleteRequest.current && deleteRequest.current.id === activeChatRef.current)) return;
     if (isRetry && messages.at(-1)?.role !== "user") return;
+    if (isRetry) {
+      documentId = messages.at(-1)?.documentId;
+      linkedDocument = messages.at(-1)?.linkedDocument;
+    }
     text = text.trim();
     const id = activeChat ?? crypto.randomUUID();
     const existingChat = chatsRef.current.find((chat) => chat.id === id);
     const priorMessages = isRetry ? messages.slice(0, -1) : messages;
-    const outgoingText = isRetry
-      ? messages.at(-1)?.remoteText ?? prepareMessage(text, explanationLevel, isPDF)
-      : prepareMessage(text, explanationLevel, isPDF);
+    const filename = linkedDocument?.filename;
+    const question = filename && !documentId && !text.includes(filename)
+      ? `If available, use the uploaded document named ${JSON.stringify(filename)}.\n\n${text}`
+      : text;
+    const outgoingText = (isRetry && messages.at(-1)?.remoteText) || prepareMessage(question, explanationLevel, isPDF);
     let content = isRetry
       ? [...priorMessages, { ...messages.at(-1), remoteText: outgoingText }]
       : [
@@ -294,6 +306,8 @@ function Home() {
             id: crypto.randomUUID(),
             role: "user",
             remoteText: outgoingText,
+            ...(documentId && { documentId }),
+            ...(linkedDocument && { linkedDocument }),
             text: isPDF
               ? MAKE_EXAM_MSG
               : text,
@@ -301,11 +315,17 @@ function Home() {
         ];
 
     activeChatRef.current = id;
-    setInitialDraft("");
+    setInitialDocument(null);
     setActiveChat(id);
     setMessages(content);
+    setStreamingText("");
     saveConversation(id, content);
     if (maintenance || Date.now() < cooldownUntil.current) {
+      if (documentId) {
+        setFailedQuestion(text);
+        setRequestError("PDF answers are temporarily unavailable. Try again when the AI service is available.");
+        return;
+      }
       const completed = [
         ...content,
         {
@@ -327,11 +347,13 @@ function Home() {
     setRequestError(null);
     setIsLoading(true);
     let receivedText = false;
+    let interrupted = false;
     try {
-      let { reply } = await sendConversationMessage({
+      const result = await sendConversationMessage({
         conversationId: existingChat?.backendConversationId,
         title: (existingChat?.title || text).slice(0, 80),
         message: outgoingText,
+        documentId,
         priorMessages,
         signal: controller.signal,
         onUpdate(event) {
@@ -351,6 +373,8 @@ function Home() {
         },
       });
       if (controller.signal.aborted) return;
+      let { reply } = result;
+      const { citations } = result;
       if (typeof reply !== "string" || !reply.trim()) {
         throw new Error("Empty response");
       }
@@ -373,14 +397,15 @@ function Home() {
 
       const completed = [
         ...content,
-        { id: crypto.randomUUID(), role: "quagbot", text: reply, remoteText: rawReply, source: "ai" },
+        { id: crypto.randomUUID(), role: "quagbot", text: reply, remoteText: rawReply, source: "ai", ...(citations && { citations }) },
       ];
       setMessages(completed);
       saveConversation(id, completed);
       setMessageSyncError(null);
     } catch (error) {
       if (!controller.signal.aborted) {
-        if (!receivedText && ![400, 401, 404].includes(error.status)) {
+        interrupted = receivedText;
+        if (!documentId && !receivedText && ![400, 401, 404].includes(error.status)) {
           const seconds = Math.min(86400, Math.max(30, error.retryAfter || 30));
           cooldownUntil.current = Date.now() + seconds * 1000;
           setCooldownSeconds(seconds);
@@ -407,14 +432,15 @@ function Home() {
       if (pendingReply.current === controller) {
         pendingReply.current = null;
         setIsLoading(false);
-        setStreamingText("");
+        if (!interrupted) setStreamingText("");
         setStreamProgress(null);
       }
     }
   }
 
   function startNewChat() {
-    setInitialDraft("");
+    setShowActivityDraft(false);
+    setInitialDocument(null);
     messageRequest.current?.abort();
     activeChatRef.current = null;
     setIsRestoring(false);
@@ -437,7 +463,8 @@ function Home() {
 
   async function loadChat(chat) {
     if (deleteRequest.current?.id === chat.id) return;
-    setInitialDraft("");
+    setShowActivityDraft(false);
+    setInitialDocument(null);
     pendingReply.current?.abort();
     pendingReply.current = null;
     messageRequest.current?.abort();
@@ -461,26 +488,46 @@ function Home() {
     const controller = new AbortController();
     messageRequest.current = controller;
     setIsRestoring(true);
-    try {
-      const records = await listMessages(cached.backendConversationId, { signal: controller.signal });
-      if (controller.signal.aborted || identityRef.current !== identity || activeChatRef.current !== chat.id) return;
-      const latest = chatsRef.current.find((item) => item.id === chat.id);
-      if (!latest) return;
-      const restored = restoreMessages(records, latest.content);
-      updateChats((previous) => previous.map((item) => item.id === chat.id ? { ...item, content: restored.messages } : item));
-      setMessages(restored.messages);
-      setRemotePending(restored.pending);
-      const tail = restored.messages.at(-1);
-      setFailedQuestion(!restored.pending && tail?.role === 'user' ? tail.text : null);
-    } catch (error) {
-      if (!controller.signal.aborted && identityRef.current === identity && activeChatRef.current === chat.id) {
-        setMessageSyncError(error.status === 404
-          ? 'Showing saved messages. Send a follow-up to reconnect this chat.'
-          : 'Could not sync messages. Showing the browser cache.');
+    let timer;
+    let pendingDeadline;
+    const isCurrent = () => !controller.signal.aborted &&
+      identityRef.current === identity && activeChatRef.current === chat.id;
+    controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+
+    async function syncMessages() {
+      try {
+        const records = await listMessages(cached.backendConversationId, { signal: controller.signal });
+        if (!isCurrent()) return;
+        const latest = chatsRef.current.find((item) => item.id === chat.id);
+        if (!latest) return;
+        const restored = restoreMessages(records, latest.content);
+        if (restored.pending) pendingDeadline ??= Date.now() + 5 * 60 * 1000;
+        const pending = restored.pending && Date.now() < pendingDeadline;
+        updateChats((previous) => previous.map((item) => item.id === chat.id ? { ...item, content: restored.messages } : item));
+        setMessages(restored.messages);
+        setMessageSyncError(null);
+        setRemotePending(pending);
+        const tail = restored.messages.at(-1);
+        setFailedQuestion(!pending && tail?.role === 'user' ? tail.text : null);
+        if (pending) timer = setTimeout(syncMessages, 3000);
+      } catch (error) {
+        if (!isCurrent()) return;
+        const retry = Date.now() < pendingDeadline && ![400, 401, 403, 404].includes(error.status);
+        if (retry) {
+          timer = setTimeout(syncMessages, Math.min(pendingDeadline - Date.now(), Math.max(5000, (error.retryAfter ?? 0) * 1000)));
+        } else {
+          setRemotePending(false);
+          const tail = chatsRef.current.find((item) => item.id === chat.id)?.content.at(-1);
+          setFailedQuestion(tail?.role === 'user' ? tail.text : null);
+          setMessageSyncError(error.status === 404
+            ? 'Showing saved messages. Send a follow-up to reconnect this chat.'
+            : 'Could not sync messages. Showing the browser cache.');
+        }
+      } finally {
+        if (isCurrent()) setIsRestoring(false);
       }
-    } finally {
-      if (!controller.signal.aborted && identityRef.current === identity && activeChatRef.current === chat.id) setIsRestoring(false);
     }
+    await syncMessages();
   }
 
   async function deleteChat(id) {
@@ -561,6 +608,7 @@ function Home() {
         key={chatVersion}
         onNewChat={startNewChat}
         onOpenHistory={() => setHistoryOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         storageError={storageError}
         syncLoading={isRestoring}
         syncPending={remotePending}
@@ -569,7 +617,9 @@ function Home() {
         maintenance={maintenance}
         cooldownSeconds={cooldownSeconds}
         sendDisabled={isRestoring || remotePending || Boolean(deletingId && deletingId === activeChat)}
-        initialDraft={initialDraft}
+        initialDocument={initialDocument}
+        activity={showActivityDraft ? activity : undefined}
+        activityNotice={activityNotice}
         messages={messages}
         title={
           chats.find((chat) => chat.id === activeChat)?.title ?? "New chat"
@@ -605,6 +655,8 @@ function Home() {
           setFontColor={setFontColor}
           explanationLevel={explanationLevel}
           setExplanationLevel={setExplanationLevel}
+          isOpen={settingsOpen}
+          setIsOpen={setSettingsOpen}
         />
         <GeneratePracticeExam onSend={sendTextToBot} messages={messages} />
       </Sidebar>

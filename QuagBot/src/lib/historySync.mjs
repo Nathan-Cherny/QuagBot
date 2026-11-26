@@ -47,14 +47,15 @@ function displayQuestion(content) {
   if (content.startsWith('Generate a short practice exam based on the content of the following conversation.')) {
     return 'QuagBot, please generate a practice exam for me!';
   }
-  return content.replace(/^Explain at (?:an elementary-school|a high-school|a college) level[^\n]*Keep facts and citations accurate\.\n\n/, '');
+  return content.replace(/^Explain at (?:an elementary-school|a high-school|a college) level[^\n]*Keep facts and citations accurate\.\n\n/, '')
+    .replace(/^If available, use the uploaded document named "(?:[^"\\]|\\.)*"\.\n\n/, '');
 }
 
 export function restoreMessages(records, cached = [], now = Date.now()) {
   const ordered = [...records].sort((a, b) => (Date.parse(a.created_at) || 0) - (Date.parse(b.created_at) || 0));
   const remote = ordered
     .filter((record) => record.content.trim() && (record.role === 'user' || record.status === 'completed'))
-    .map((record) => ({ id: record.id, role: record.role === 'assistant' ? 'quagbot' : 'user', text: record.role === 'user' ? displayQuestion(record.content) : record.content, rawText: record.content }));
+    .map((record) => ({ id: record.id, role: record.role === 'assistant' ? 'quagbot' : 'user', text: record.role === 'user' ? displayQuestion(record.content) : record.content, rawText: record.content, citations: record.citations, documentId: record.document_id }));
   const messages = [];
   let cursor = 0;
   for (const record of remote) {
@@ -62,14 +63,18 @@ export function restoreMessages(records, cached = [], now = Date.now()) {
       item.id === record.id || item.backendMessageId === record.id ||
       (item.role === record.role && (item.text === record.text || item.remoteText === record.rawText))
     ));
+    const source = {
+      ...(record.citations && { citations: record.citations }),
+      ...(record.documentId && { documentId: record.documentId }),
+    };
     if (match === -1) {
-      messages.push({ id: record.id, role: record.role, text: record.text });
+      messages.push({ id: record.id, role: record.role, text: record.text, ...source });
       continue;
     }
     // Preserve unmatched local turns, including fallback answers and unsent questions.
     messages.push(...cached.slice(cursor, match));
     const existing = cached[match];
-    messages.push(existing.id === record.id ? existing : { ...existing, backendMessageId: record.id });
+    messages.push({ ...existing, ...source, ...(existing.id !== record.id && { backendMessageId: record.id }) });
     cursor = match + 1;
   }
   messages.push(...cached.slice(cursor));

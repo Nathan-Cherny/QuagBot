@@ -19,6 +19,7 @@ import {
   rowLabel,
 } from "../components/ui/styles";
 import { createClient } from "@/lib/supabase/client";
+import { setTeacherMode } from "@/lib/teacherMode";
 
 function LogIn() {
   const [email, setEmail] = useState("");
@@ -34,13 +35,21 @@ function LogIn() {
     setSubmitting(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     setSubmitting(false);
     if (error) {
       setError(error.message);
       return;
     }
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
+    if (profile?.role === 'teacher' || data.user?.user_metadata?.account_type === "teacher") {
+      setTeacherMode(true);
+      router.push("/teacherdash");
+      router.refresh();
+      return;
+    }
+    setTeacherMode(false);
     router.push("/");
     router.refresh(); // re-run server code so it sees the new session cookie
   }

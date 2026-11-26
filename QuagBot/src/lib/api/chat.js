@@ -41,7 +41,10 @@ async function readReplyStream(response, onUpdate) {
       for (const line of lines) {
         if (!line.trim()) continue;
         const event = JSON.parse(line);
-        if (event.type === 'completed') return { reply: event.reply };
+        if (event.type === 'completed') {
+          const { type, ...result } = event;
+          return result;
+        }
         if (event.type === 'error') {
           throw Object.assign(new Error(event.error), {
             status: event.status,
@@ -65,26 +68,26 @@ export async function createConversation(title, options) {
 }
 
 export async function sendMessage(conversationId, message, options) {
-  const data = await request('/api/messages', { ...options, method: 'POST', body: { conversationId, message } });
+  const data = await request('/api/messages', { ...options, method: 'POST', body: { conversationId, message, ...(options?.documentId && { documentId: options.documentId }) } });
   if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('The AI service returned an empty answer. Please try again.');
   return data;
 }
 
-export async function sendConversationMessage({ conversationId, title, message, priorMessages, signal, onLink, onUpdate }) {
+export async function sendConversationMessage({ conversationId, title, message, documentId, priorMessages, signal, onLink, onUpdate }) {
   if (conversationId) {
     try {
-      return await sendMessage(conversationId, message, { signal, onUpdate });
+      return await sendMessage(conversationId, message, { signal, onUpdate, documentId });
     } catch (error) {
-      if (error.status !== 404 || signal?.aborted) throw error;
+      if (error.status !== 404 || signal?.aborted || documentId) throw error;
     }
   }
 
   signal?.throwIfAborted();
-  const outgoingText = addSavedChatContext(message, priorMessages);
+  const outgoingText = documentId ? message : addSavedChatContext(message, priorMessages);
   const conversation = await createConversation(title, { signal });
   signal?.throwIfAborted();
   onLink(conversation.id, outgoingText);
-  return sendMessage(conversation.id, outgoingText, { signal, onUpdate });
+  return sendMessage(conversation.id, outgoingText, { signal, onUpdate, documentId });
 }
 
 export async function listConversations(options) {

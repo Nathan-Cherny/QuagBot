@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, PlugZap } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { handleSubmit } from "./submission";
 import PageWrapper from "../components/Layout/PageWrapper";
 import {
   authError,
@@ -14,61 +15,43 @@ import {
   buttonPrimary,
   buttonStack,
   card,
-  cardRow,
   cardRowInput,
   iconButton,
   pageTitle,
   required,
   rowLabel,
-  rowValueConnect,
 } from "../components/ui/styles";
-import { createClient } from "@/lib/supabase/client";
 
 function SignUp() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accountType, setAccountType] = useState("Student");
   const [showPassword, setShowPassword] = useState(false);
-  const [connectedTeacher] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-    setNotice("");
-    setSubmitting(true);
-
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      // Stored on the user; the database trigger copies it into profiles.
-      options: { data: { display_name: name } },
-    });
-
-    setSubmitting(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    // With "Confirm email" on, Supabase creates the user but no session yet.
-    if (!data.session) {
-      setNotice("Check your email to confirm your account, then log in.");
-      return;
-    }
-    // TODO: connecting to a teacher needs the classrooms join-code flow; do it after login.
-    router.push("/");
-    router.refresh();
-  }
-
   return (
     <PageWrapper basic>
       <h1 className={pageTitle}>Create your account</h1>
 
-      <form className="flex flex-col" onSubmit={handleSubmit}>
+      <form
+        className="flex flex-col"
+        onSubmit={(event) =>
+          handleSubmit(event, {
+            name,
+            email,
+            password,
+            accountType,
+            setError,
+            setNotice,
+            setSubmitting,
+            router,
+          })
+        }
+      >
         <div className={card}>
           <label className={cardRowInput}>
             <span className={`${rowLabel} ${required}`}>Name</span>
@@ -123,23 +106,18 @@ function SignUp() {
             </span>
           </div>
 
-          {/* Same "Connected teacher" row as the profile page */}
-          <div className={cardRow}>
-            <span className={rowLabel}>Teacher to connect to</span>
-            <span className={rowValueConnect}>
-              {connectedTeacher ?? "Not connected"}
-              {!connectedTeacher && (
-                <button
-                  type="button"
-                  className={iconButton}
-                  title="Connect to your teacher"
-                  aria-label={"Connect"}
-                >
-                  <PlugZap size={16} />
-                </button>
-              )}
-            </span>
-          </div>
+          <label className={cardRowInput}>
+            <span className={`${rowLabel} ${required}`}>Account Type</span>
+            <select
+              className={`${authInput} text-right`}
+              value={accountType}
+              onChange={(e) => setAccountType(e.target.value)}
+              aria-label="Account Type"
+            >
+              <option value="Student">Student</option>
+              <option value="Teacher">Teacher</option>
+            </select>
+          </label>
         </div>
 
         {error && <p className={authError} role="alert">{error}</p>}

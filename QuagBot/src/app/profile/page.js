@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PlugZap } from "lucide-react";
+import Link from "next/link";
 import LogOutButton from "../components/Layout/Elements/LogOutButton";
 
 import PageWrapper from "../components/Layout/PageWrapper";
@@ -10,13 +10,12 @@ import {
   buttonStack,
   card,
   cardRow,
-  iconButton,
   pageTitle,
   rowLabel,
   rowValue,
-  rowValueConnect,
 } from "../components/ui/styles";
 import { createClient } from "@/lib/supabase/client";
+import { setTeacherMode } from "@/lib/teacherMode";
 
 function Profile() {
   const [user, setUser] = useState(null);
@@ -29,19 +28,19 @@ function Profile() {
       setUser({
         name: data.user.user_metadata?.display_name ?? "Student",
         email: data.user.email,
-        connectedTeacher: null, // TODO: load from the classrooms table
       });
     });
   }, []);
 
   async function handleLogout() {
     await createClient().auth.signOut();
+    setTeacherMode(false);
     router.push("/login");
     router.refresh();
   }
 
   if (!user) {
-    return <PageWrapper basic><p>Loading…</p></PageWrapper>;
+    return <PageWrapper basic><p className="text-center">Loading…</p></PageWrapper>;
   }
 
   return (
@@ -60,20 +59,8 @@ function Profile() {
           </div>
 
           <div className={cardRow}>
-            <span className={rowLabel}>Connected teacher</span>
-            <span className={rowValueConnect}>
-              {user.connectedTeacher ?? "Not connected"}
-              {!user.connectedTeacher && (
-                <button
-                  type="button"
-                  className={iconButton}
-                  title="Connect to your teacher"
-                  aria-label={"Connect"}
-                >
-                  <PlugZap size={16} />
-                </button>
-              )}
-            </span>
+            <span className={rowLabel}>Classrooms</span>
+            <Link href="/classrooms" className={`${rowValue} underline`}>Open classrooms</Link>
           </div>
         </div>
 

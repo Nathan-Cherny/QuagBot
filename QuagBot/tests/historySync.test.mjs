@@ -130,3 +130,19 @@ test('saved context fits the message limit and omits the welcome message', () =>
   assert.ok(outgoing.endsWith(question));
   assert.ok(!outgoing.includes(welcome.text));
 });
+
+test('restores PDF references from remote history with or without a local cache', () => {
+  const documentId = '11111111-2222-4333-8444-555555555555';
+  const citations = [{
+    number: 1, document_id: documentId, filename: 'Notes.pdf',
+    page_number: 7, section_name: 'The Stamp Act',
+  }];
+  const records = [
+    { id: 'question', role: 'user', content: 'What did it tax?', document_id: documentId, status: 'completed' },
+    { id: 'answer', role: 'assistant', content: 'Printed materials [1].', citations, status: 'completed' },
+  ];
+  const restored = restoreMessages(records).messages;
+  assert.equal(restored[0].documentId, documentId);
+  assert.deepEqual(restored[1].citations, citations);
+  assert.deepEqual(restoreMessages(records, restored).messages, restored);
+});

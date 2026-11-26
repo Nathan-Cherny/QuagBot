@@ -1,3 +1,4 @@
+import { isDocumentId, normalizeCitations } from './pdfCitations.mjs';
 // Server-side backend adapter. Never accept a user ID or backend URL from the browser.
 export class AIError extends Error {
   constructor(message, status = 502, retryAfter = null) {
@@ -42,7 +43,8 @@ export function normalizeReply(payload) {
   if (typeof reply !== "string" || !reply.trim()) {
     throw new AIError("The AI service returned an invalid or empty answer.");
   }
-  return { reply };
+  const citations = normalizeCitations(payload?.citations);
+  return citations === undefined ? { reply } : { reply, citations };
 }
 
 export function parseChatResponse(text, contentType = "") {
@@ -171,7 +173,9 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
           /^\/conversations\/[^/]+(?:\/messages)?$/.test(path))
       ) {
         throw new AIError(
-          "This conversation is no longer available for your account.",
+          body?.document_id
+            ? "The selected PDF or conversation is unavailable for your account."
+            : "This conversation is no longer available for your account.",
           404,
         );
       }
@@ -246,20 +250,27 @@ export async function readJSONResponse(response) {
   }
 }
 
-export function sendAIMessage({ userId, conversationId, message, signal, onUpdate }) {
+export function sendAIMessage({ userId, conversationId, message, documentId, signal, onUpdate }) {
   return callAI('/chat', {
     userId,
-    body: { conversation_id: conversationId, message },
+    body: { conversation_id: conversationId, message, ...(documentId && { document_id: documentId }) },
     signal,
   }, async (response) => {
     const contentType = response.headers.get('content-type') ?? '';
     if (!onUpdate || contentType.includes('application/json')) {
-      return parseChatResponse(await readResponse(response), contentType);
+      return validateDocumentReply(parseChatResponse(await readResponse(response), contentType), documentId);
     }
     const parser = createChatParser(onUpdate);
     await readResponse(response, parser.push);
-    return parser.finish();
+    return validateDocumentReply(parser.finish(), documentId);
   });
+}
+
+function validateDocumentReply(result, documentId) {
+  if (documentId && (!result.citations || result.citations.some((citation) => citation.document_id !== documentId))) {
+    throw new AIError("The PDF answer could not be verified against the selected document.", 422);
+  }
+  return result;
 }
 
 export async function listAIConversations({ userId, signal }) {
@@ -307,12 +318,14 @@ export async function listAIMessages({ userId, conversationId, signal }) {
   ) {
     throw new AIError("The AI service returned invalid messages.");
   }
-  return records.map(({ id, role, content, status, created_at }) => ({
+  return records.map(({ id, role, content, status, created_at, citations, document_id }) => ({
     id,
     role,
     content,
     status,
     created_at,
+    ...(role === "assistant" && Array.isArray(citations) && { citations: normalizeCitations(citations) }),
+    ...(role === "user" && isDocumentId(document_id) && { document_id }),
   }));
 }
 
@@ -381,4 +394,21 @@ export async function uploadAIPDF({ userId, file, signal }) {
     filename: typeof result.filename === 'string' ? result.filename : file.name,
     ...processingFields(result),
   };
+}
+
+export async function listEducationSources({ userId, signal }) {
+  const records = await callAI('/uploadedu', { userId, signal, method: 'GET' }, readJSONResponse);
+  if (!Array.isArray(records)) throw new AIError('The education source list is unavailable.');
+  return records.filter((record) =>
+    typeof record?.id === 'string' && typeof record.filename === 'string'
+  ).map(({ id, filename, metadata }) => {
+    const source = metadata?.education;
+    return {
+      id,
+      filename,
+      title: typeof source?.title === 'string' && source.title.trim() ? source.title : filename,
+      authors: Array.isArray(source?.authors) ? source.authors.filter((author) => typeof author === 'string') : [],
+      citation: typeof source?.citation === 'string' ? source.citation : null,
+    };
+  });
 }

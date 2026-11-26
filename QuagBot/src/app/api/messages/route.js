@@ -1,3 +1,4 @@
+import { isDocumentId, pdfCitationsEnabled } from '@/lib/pdfCitations.mjs';
 import { NextResponse } from 'next/server';
 import { authenticatedRoute } from '@/lib/ai-route';
 import { AIError, MAX_MESSAGE_LENGTH, sendAIMessage } from '@/lib/ai-backend.mjs';
@@ -9,10 +10,15 @@ export const POST = authenticatedRoute(async (request, body, userId) => {
   if (typeof body.message !== 'string' || !body.message.trim() || body.message.length > MAX_MESSAGE_LENGTH) {
     throw new AIError(`Enter a question between 1 and ${MAX_MESSAGE_LENGTH} characters.`, 400);
   }
+  if (body.documentId !== undefined) {
+    if (!isDocumentId(body.documentId)) throw new AIError("Select a valid PDF.", 400);
+    if (!pdfCitationsEnabled) throw new AIError("PDF-specific answers are currently unavailable.", 400);
+  }
   const options = {
     userId,
     conversationId: body.conversationId,
     message: body.message.trim(),
+    documentId: body.documentId,
     signal: request.signal,
   };
   if (request.headers.get('accept') === 'application/x-ndjson') {
@@ -33,8 +39,10 @@ function streamReply(options) {
       };
       async function forwardReply() {
         try {
-          const { reply } = await sendAIMessage({ ...options, signal, onUpdate: emit });
-          emit({ type: 'completed', reply });
+          const result = await sendAIMessage({ ...options, signal, onUpdate: (event) => {
+            if (!options.documentId || event.type !== 'delta') emit(event);
+          } });
+          emit({ type: 'completed', ...result });
         } catch (error) {
           const known = error instanceof AIError;
           emit({

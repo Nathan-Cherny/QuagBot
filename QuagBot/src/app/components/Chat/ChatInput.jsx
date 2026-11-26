@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Mic, MicOff } from 'lucide-react';
-import UploadPDFButton, { UploadPDFDialog } from './UploadPDF';
+import { FileText, FolderOpen, Mic, MicOff, Paperclip, Send, X } from 'lucide-react';
+import { uploadPDF } from '../../../lib/api/documents';
+import DocumentList from '../Documents/DocumentList';
+import { canSelectPdf } from '../../../lib/pdfCitations.mjs';
 
 function appendTranscript(current, transcript) {
   if (!transcript) return current;
@@ -8,9 +10,15 @@ function appendTranscript(current, transcript) {
   return `${current}${separator}${transcript}`;
 }
 
-function ChatInput({ onSend, disabled, initialDraft = '' }) {
+function ChatInput({ onSend, disabled, initialDraft = '', initialDocument = null }) {
   const [value, setValue] = useState(initialDraft);
-  const [userPDFOpen, setUserPDFOpen] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState(initialDocument);
+  const [uploadingFilename, setUploadingFilename] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const fileInput = useRef(null);
+  const uploadRequest = useRef(null);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const documentsDialog = useRef(null);
   const [interimTranscript, setInterimTranscript] = useState('');
 
   // States to track if speech recognition is active
@@ -27,6 +35,7 @@ function ChatInput({ onSend, disabled, initialDraft = '' }) {
   const draftValue = appendTranscript(value, interimTranscript).slice(0, 10000);
 
   useEffect(() => () => {
+    uploadRequest.current?.abort();
     wantsListeningRef.current = false;
     clearTimeout(restartTimerRef.current);
     if (recognitionRef.current) {
@@ -74,7 +83,7 @@ function ChatInput({ onSend, disabled, initialDraft = '' }) {
 
   function submit() {
     const trimmed = draftValue.trim();
-    if (!trimmed || disabled) return;
+    if (!trimmed || disabled || uploadRequest.current) return;
 
     //Code to stop speech recognition when the user submits a message
     const wasListening = wantsListeningRef.current;
@@ -92,7 +101,9 @@ function ChatInput({ onSend, disabled, initialDraft = '' }) {
       setSpeechStatus('Dictation stopped because your message was sent.');
     }
 
-    onSend(trimmed, false);
+    const scopedId = canSelectPdf(selectedDocument?.id, selectedDocument?.filename) ? selectedDocument.id : undefined;
+    onSend(trimmed, false, false, scopedId, selectedDocument);
+    setSelectedDocument(null);
     setValue('');
     setInterimTranscript('');
     interimTranscriptRef.current = '';
@@ -218,16 +229,83 @@ function ChatInput({ onSend, disabled, initialDraft = '' }) {
     startRecognition();
   }
 
+  async function attachUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || disabled || uploadRequest.current) return;
+    setUploadError(null);
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      setUploadError('Choose a PDF file.');
+      return;
+    }
+    const controller = new AbortController();
+    uploadRequest.current = controller;
+    setUploadingFilename(file.name);
+    try {
+      const document = await uploadPDF(file, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (document.embedding_status === 'failed' || document.chunk_count === 0) {
+        throw new Error('This PDF has no searchable text. Choose a PDF with selectable text.');
+      }
+      setSelectedDocument(document);
+      textareaRef.current?.focus();
+    } catch (error) {
+      if (!controller.signal.aborted) setUploadError(error.message);
+    } finally {
+      if (!controller.signal.aborted) {
+        uploadRequest.current = null;
+        setUploadingFilename(null);
+      }
+    }
+  }
+
+  function openDocuments() {
+    if (disabled || uploadRequest.current) return;
+    setDocumentsOpen(true);
+    documentsDialog.current.showModal();
+  }
+
+  function attachSavedDocument(document) {
+    setUploadError(null);
+    setSelectedDocument(document);
+    documentsDialog.current.close();
+    textareaRef.current?.focus();
+  }
+
   return (
-    <div className="border-t border-border bg-surface p-space-4">
-      <div className="flex items-center gap-space-2">
-        <UploadPDFButton setUserPDFOpen={setUserPDFOpen}/>
-        <UploadPDFDialog setUserPDFOpen={setUserPDFOpen} userPDFOpen={userPDFOpen}/>
+    <div className="border-t border-border bg-surface p-space-4 max-[900px]:p-space-2">
+      {selectedDocument && (
+        <div className="mb-space-2 inline-flex max-w-full items-center gap-space-2 rounded-card border border-border px-space-3 py-space-2 text-sm">
+          <FileText size={18} className="shrink-0 text-text-muted" aria-hidden="true" />
+          <span className="min-w-0 truncate" title={selectedDocument.filename}>{selectedDocument.filename}</span>
+          <button type="button" aria-label="Remove PDF attachment" onClick={() => setSelectedDocument(null)}
+            className="shrink-0 rounded p-1 hover:bg-navbar-bg">
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+      {selectedDocument && !canSelectPdf(selectedDocument.id, selectedDocument.filename) && (
+        <p className="mb-space-2 text-xs text-text-muted">QuagBot can also search other education sources.</p>
+      )}
+      {uploadingFilename && <p role="status" className="mb-space-2 text-sm text-text-muted">Attaching {uploadingFilename}…</p>}
+      {uploadError && <p role="alert" className="mb-space-2 text-sm text-error">{uploadError}</p>}
+      <div className="flex items-center gap-space-2 max-[480px]:gap-1">
+        <input ref={fileInput} type="file" accept=".pdf,application/pdf" className="hidden" onChange={attachUpload} />
+        <button type="button" aria-label="Attach PDF" title="Attach PDF" disabled={disabled || Boolean(uploadingFilename)}
+          onClick={() => fileInput.current?.click()}
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-card border border-border text-text-muted enabled:cursor-pointer enabled:hover:bg-navbar-bg disabled:opacity-50">
+          <Paperclip size={19} aria-hidden="true" />
+        </button>
+        <button type="button" onClick={openDocuments} aria-label="Choose an uploaded PDF" title="Choose an uploaded PDF"
+          disabled={disabled || Boolean(uploadingFilename)}
+          className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-card border border-border bg-surface text-text-muted hover:bg-navbar-bg">
+          <FolderOpen size={19} aria-hidden="true" />
+        </button>
         <textarea
           ref={textareaRef}
           aria-label="Chat message"
           className="max-h-[160px] min-w-0 flex-1 resize-none overflow-y-auto rounded-card border border-border bg-bg px-space-3 py-space-2 text-[0.92rem] leading-[1.4] text-text focus:outline-2 focus:outline-offset-1 focus:outline-accent"
-          placeholder="Send a message..."
+          placeholder={selectedDocument ? "Ask about this PDF…" : "Send a message..."}
           rows={1}
           maxLength={10000}
           value={draftValue}
@@ -243,7 +321,7 @@ function ChatInput({ onSend, disabled, initialDraft = '' }) {
         {/* Button to start and stop speech recognition */}
         <button
           type="button"
-          className={`flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none ${isListening
+          className={`flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none ${isListening
               ? 'bg-red-600 text-white'
               : 'bg-navbar-bg text-text hover:brightness-95'
             } disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
@@ -261,13 +339,26 @@ function ChatInput({ onSend, disabled, initialDraft = '' }) {
 
         <button
           type="button"
-          className="cursor-pointer rounded-card border-none bg-accent px-space-4 py-space-2 text-[0.9rem] font-medium text-accent-contrast enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Send message"
+          className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-card border-none bg-accent px-space-4 text-[0.9rem] max-[480px]:size-9 max-[480px]:p-0 font-medium text-accent-contrast enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           onClick={submit}
-          disabled={disabled || !draftValue.trim()}
+          disabled={disabled || Boolean(uploadingFilename) || !draftValue.trim()}
         >
-          Send
+          <span className="max-[480px]:hidden">Send</span>
+          <Send size={17} aria-hidden="true" className="hidden max-[480px]:block" />
         </button>
       </div>
+      <dialog ref={documentsDialog} onClose={() => setDocumentsOpen(false)} aria-labelledby="chat-documents-title"
+        className="m-auto max-h-[85dvh] w-[min(40rem,calc(100%_-_1.5rem))] overflow-y-auto rounded-card border border-border bg-surface p-space-4 text-text shadow-xl backdrop:bg-black/40">
+        <div className="mb-space-3 flex items-center justify-between gap-space-2">
+          <h2 id="chat-documents-title" className="text-lg font-semibold">Choose a PDF</h2>
+          <button type="button" aria-label="Close documents" onClick={() => documentsDialog.current.close()}
+            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-card hover:bg-navbar-bg">
+            <X size={19} aria-hidden="true" />
+          </button>
+        </div>
+        {documentsOpen && <DocumentList onAttach={attachSavedDocument} />}
+      </dialog>
       {/* Live region for screen readers to announce speech recognition status */}
       <span className="sr-only" aria-live="polite" aria-atomic="true">
         {speechStatus}

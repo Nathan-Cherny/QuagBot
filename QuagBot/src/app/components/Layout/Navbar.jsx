@@ -1,11 +1,23 @@
+"use client";
+
+import { useSyncExternalStore } from "react";
 import { usePathname } from 'next/navigation';
 import UserMenu from '../User/UserMenu';
+import {
+  isTeacherMode,
+  subscribeToTeacherMode,
+} from "@/lib/teacherMode";
 
 import { Home, CircleQuestionMark } from 'lucide-react';
 
 function Navbar() {
   const iconSize = 16
   const pathname = usePathname()
+  const teacherMode = useSyncExternalStore(
+    subscribeToTeacherMode,
+    isTeacherMode,
+    () => false,
+  );
 
   return (
     <header className="flex items-center justify-between border-b-2 border-important-border bg-navbar-bg px-space-5 py-space-3">
@@ -14,7 +26,7 @@ function Navbar() {
         <img className='max-w-12.5' src='/QuagBotLogo.png'></img>
       </div>
       <nav className="flex gap-space-5">
-        <NavbarLink href="/" name="Home" pn={pathname} icon={<Home size={iconSize} />} />
+        <NavbarLink href={teacherMode ? "/teacherdash" : "/"} name="Home" pn={pathname} icon={<Home size={iconSize} />} />
         <NavbarLink href="/about" name="About" pn={pathname} icon={<CircleQuestionMark size={iconSize} />} />
       </nav>
       <UserMenu name="Account" />

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createClient } from '../../../lib/supabase/client';
 import { EXPLANATION_LEVELS, LEVEL_DESCRIPTIONS, loadExplanationLevel, saveExplanationLevel } from './chatPreferences';
 
@@ -8,8 +9,8 @@ export const FIELD = 'my-space-4 flex flex-col gap-space-1 text-left text-black'
 export const SELECT = 'rounded-card border border-border bg-surface p-space-2 text-black [color-scheme:light] [font:inherit]';
 export const INPUT =  'rounded-card border border-border bg-surface p-space-2 text-black [color-scheme:light] [font:inherit]';
 
-function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFontColor, explanationLevel, setExplanationLevel }) {
-  const [isOpen, setIsOpen] = useState(false);
+function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFontColor, explanationLevel, setExplanationLevel, isOpen, setIsOpen }) {
+  const dialogRef = useRef(null);
   const [explanationKey, setExplanationKey] = useState(null);
 
   useEffect(() => {
@@ -35,6 +36,11 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
     if (explanationKey) saveExplanationLevel(explanationKey, explanationLevel);
   }, [explanationKey, explanationLevel]);
 
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (isOpen && dialog && !dialog.open) dialog.showModal();
+  }, [isOpen]);
+
   function resetSettings() {
     setTextSize('18px');
     setFont('Arial, sans-serif');
@@ -47,10 +53,10 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
       <button type="button" className={PILL_BUTTON} onClick={() => setIsOpen(true)}>
         Chat Settings
       </button>
-      {isOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/30">
-          <div className="max-h-[90vh] w-[350px] max-w-[90%] overflow-y-auto rounded-[12px] bg-surface p-space-5">
-            <h2 className="mb-space-2 text-[24px] leading-[118%] font-medium tracking-[-0.24px] text-black max-[1024px]:text-[20px]">Chat Settings</h2>
+      {isOpen && createPortal(
+        <dialog ref={dialogRef} onClose={() => setIsOpen(false)} aria-labelledby="chat-settings-title"
+          className="m-auto max-h-[90dvh] w-[350px] max-w-[90%] overflow-y-auto rounded-[12px] border border-border bg-surface p-space-5 text-text backdrop:bg-black/40">
+            <h2 id="chat-settings-title" className="mb-space-2 text-[24px] leading-[118%] font-medium tracking-[-0.24px] text-black max-[1024px]:text-[20px]">Chat Settings</h2>
             <label className={FIELD}>
               Explanation level
               <select className={SELECT} value={explanationLevel} disabled={!explanationKey} aria-describedby="explanation-help" onChange={(event) => setExplanationLevel(event.target.value)}>
@@ -101,9 +107,9 @@ function ChatSettings({ textSize, setTextSize, font, setFont, fontColor, setFont
             </p>
             <p>Settings are saved in this browser for your account.</p>
             <button type="button" className={`${PILL_BUTTON} my-5`} disabled={!explanationKey} onClick={resetSettings}>Reset to defaults</button>
-            <button type="button" className={PILL_BUTTON} onClick={() => setIsOpen(false)}>Close</button>
-          </div>
-        </div>
+            <button type="button" className={PILL_BUTTON} onClick={() => dialogRef.current.close()}>Close</button>
+        </dialog>,
+        document.body
       )}
     </div>
   );
