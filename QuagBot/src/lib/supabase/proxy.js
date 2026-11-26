@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
 // Pages anyone can see without logging in.
-const PUBLIC_PATHS = ["/login", "/signup", "/about", "/teacherdash"];
+const PUBLIC_PATHS = ["/login", "/signup", "/about"]; // "/teacherdash"
 
 export async function updateSession(request) {
   // The snapshot is decoded entirely in the browser; no account or AI service is needed.

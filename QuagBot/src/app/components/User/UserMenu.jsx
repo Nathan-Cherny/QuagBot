@@ -4,6 +4,7 @@ import UserAvatar from './UserAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { buttonDanger, logoutButton } from '../ui/styles';
 import LogOutButton from '../Layout/Elements/LogOutButton';
+import { setTeacherMode } from "@/lib/teacherMode";
 
 const MENU_ITEM = "cursor-pointer rounded-[6px] border-none bg-transparent px-space-3 py-space-2 text-left text-[0.88rem] text-text hover:bg-bg";
 
@@ -15,6 +16,7 @@ function UserMenu({ name = 'Account', onSeeAccount, onLogout }) {
   const seeAccount = onSeeAccount ?? (() => router.push('/profile'));
   const logout = onLogout ?? (async () => {
     await createClient().auth.signOut();
+    setTeacherMode(false);
     router.push('/login');
     router.refresh();
   });
