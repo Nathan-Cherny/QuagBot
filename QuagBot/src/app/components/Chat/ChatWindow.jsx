@@ -4,11 +4,12 @@ import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import SuggestedQuestions from './SuggestedQuestions';
 import NewChatButton from './NewChatButton';
+import ChatExport from './ChatExport';
 import { chatAvatar, chatMessageRow } from '../ui/styles';
 
 const TYPING_DOT = 'size-[6px] animate-typing-bounce rounded-full bg-text-muted';
 
-function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, error, onRetry, retryLabel = 'Try again', onOpenHistory, storageError, ready = true, archived = false, emptyHistory = false, sendDisabled = false, title = 'New chat', date, maintenance = false, cooldownSeconds = 0 }) {
+function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, error, onRetry, retryLabel = 'Try again', onOpenHistory, storageError, ready = true, archived = false, emptyHistory = false, sendDisabled = false, title = 'New chat', date, maintenance = false, cooldownSeconds = 0, syncLoading = false, syncPending = false, syncError }) {
   const scrollRef = useRef(null);
   const contentRef = useRef(null);
   const followLatest = useRef(true);
@@ -51,13 +52,15 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
 
   return (
     <div data-chat-window className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-main-chat-bg">
-      <div className="min-w-0 border-b border-border bg-surface px-space-4 py-space-3 flex flex-row items-center gap-3">
-        <h1 title={title} className="truncate text-base font-semibold text-text">{title}</h1>
-        {date && <>
-          <p>•</p>
-          <h4 title={date} className="truncate text-base font-medium text-text">{date}</h4>
-        </>
-        }
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-space-3 border-b border-border bg-surface px-space-4 py-space-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <h1 title={title} className="truncate text-base font-semibold text-text">{title}</h1>
+          {date && <>
+            <p>•</p>
+            <h4 title={date} className="truncate text-base font-medium text-text">{date}</h4>
+          </>}
+        </div>
+        <ChatExport key={title + ':' + (messages[0]?.id ?? '')} title={title} messages={messages} disabled={!ready || isLoading} />
       </div>
       <div className="hidden justify-center border-b border-border bg-surface px-space-4 py-space-2 max-[900px]:flex">
         <button type="button" onClick={onOpenHistory} className="mr-space-3 cursor-pointer rounded-card border border-border px-space-3 py-space-2 text-sm hover:bg-navbar-bg">History</button>
@@ -71,6 +74,9 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
         {emptyHistory && <p role="status">This chat has no messages saved in this browser. <button type="button" onClick={onNewChat} className="cursor-pointer underline">Start a new chat</button> to ask the AI.</p>}
         {archived && <p role="status">This chat predates the AI connection and is read-only. Start a new chat to ask the AI.</p>}
         {storageError && <p role="alert" className="mt-space-1 text-error">{storageError}</p>}
+        {syncLoading && <p role="status">Syncing messages… Cached messages remain visible.</p>}
+        {!syncLoading && syncPending && <p role="status">The AI service is still processing a saved message. Reopen this chat to check for the reply.</p>}
+        {!syncLoading && syncError && <p role="status">{syncError}</p>}
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto p-space-5 max-[900px]:p-space-3 [overflow-anchor:none]" ref={scrollRef}>

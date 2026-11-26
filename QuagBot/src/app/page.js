@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ChatWindow from "./components/Chat/ChatWindow";
 import Sidebar from "./components/Layout/Sidebar";
 import ChatHistory from "./components/Chat/ChatHistory";
 import MobileHistory from "./components/Chat/MobileHistory";
 import ChatSettings from "./components/Chat/ChatSettings";
 import PageWrapper from "./components/Layout/PageWrapper";
-import { createConversation, sendMessage } from "../lib/api/chat";
+import { createConversation, sendMessage, listConversations, listMessages } from "../lib/api/chat";
 import { getOutageReply } from "../lib/chat";
 import {
   GeneratePracticeExam,
@@ -16,6 +16,7 @@ import {
 } from "./components/Chat/PracticeExamPDF";
 import { createClient } from "../lib/supabase/client";
 import { browserHistory } from "../lib/browserHistory.mjs";
+import { mergeConversationCatalog, restoreMessages } from "../lib/historySync.mjs";
 import { DEFAULT_PREFERENCES, parsePreferences } from "../lib/chatPreferences";
 
 import { prepareMessage } from "./components/Chat/chatPreferences";
@@ -41,6 +42,45 @@ function Home() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chatVersion, setChatVersion] = useState(0);
   const pendingReply = useRef(null);
+  const chatsRef = useRef([]);
+  const identityRef = useRef(null);
+  const activeChatRef = useRef(null);
+  const historyRequest = useRef(null);
+  const messageRequest = useRef(null);
+  const hiddenIds = useRef(new Set());
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [messageSyncError, setMessageSyncError] = useState(null);
+  const [remotePending, setRemotePending] = useState(false);
+
+  const updateChats = useCallback((update) => {
+    const next = typeof update === 'function' ? update(chatsRef.current) : update;
+    chatsRef.current = next;
+    setChats(next);
+  }, []);
+
+  const refreshHistory = useCallback(async () => {
+    const identity = identityRef.current;
+    if (!identity || identity === 'guest') return;
+    historyRequest.current?.abort();
+    const controller = new AbortController();
+    historyRequest.current = controller;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const remote = await listConversations({ signal: controller.signal });
+      if (controller.signal.aborted || identityRef.current !== identity) return;
+      updateChats((local) => mergeConversationCatalog(local, remote, hiddenIds.current));
+    } catch {
+      if (!controller.signal.aborted && identityRef.current === identity) {
+        setHistoryError('Could not sync history. Your cached chats are still available.');
+      }
+    } finally {
+      if (!controller.signal.aborted && identityRef.current === identity) setHistoryLoading(false);
+    }
+  }, [updateChats]);
+
   const [maintenance, setMaintenance] = useState(false);
   const cooldownUntil = useRef(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -90,6 +130,18 @@ function Home() {
       const identity = user?.id ?? "guest";
       if (disposed || restoredIdentity === identity) return;
       restoredIdentity = identity;
+      identityRef.current = identity;
+      activeChatRef.current = null;
+      historyRequest.current?.abort();
+      messageRequest.current?.abort();
+      setHistoryLoading(false);
+      setHistoryError(null);
+      setIsRestoring(false);
+      setRemotePending(false);
+      cooldownUntil.current = 0;
+      setCooldownSeconds(0);
+      setMessageSyncError(null);
+      hiddenIds.current = new Set();
       setConversationUnavailable(false);
       pendingReply.current?.abort();
       pendingReply.current = null;
@@ -114,6 +166,10 @@ function Home() {
       let saved = [];
       try {
         saved = browserHistory.load(localStorage, key);
+        try {
+          const hidden = JSON.parse(localStorage.getItem(`${key}:hidden`) ?? '[]');
+          if (Array.isArray(hidden)) hiddenIds.current = new Set(hidden.filter((id) => typeof id === 'string'));
+        } catch { /* A damaged hide list must not prevent loading cached messages. */ }
         setHistoryCanSave(true);
         setStorageError(null);
       } catch {
@@ -122,8 +178,9 @@ function Home() {
           "Saved chats could not be loaded. New messages will remain available during this visit.",
         );
       }
-      setChats(saved);
+      updateChats(saved);
       setStorageKey(key);
+      if (user?.id) void refreshHistory();
     }
     let unsubscribe = () => {};
     try {
@@ -140,8 +197,11 @@ function Home() {
       disposed = true;
       unsubscribe();
       pendingReply.current?.abort();
+      historyRequest.current?.abort();
+      messageRequest.current?.abort();
+      identityRef.current = null;
     };
-  }, []);
+  }, [refreshHistory, updateChats]);
 
   useEffect(() => {
     if (!storageKey || !historyCanSave) return;
@@ -176,7 +236,7 @@ function Home() {
       firstQuestion.length > 45
         ? `${firstQuestion.slice(0, 45)}…`
         : firstQuestion;
-    setChats((previous) => {
+    updateChats((previous) => {
       const existing = previous.find((item) => item.id === id);
       const chat = {
         ...existing,
@@ -199,7 +259,7 @@ function Home() {
       !text.trim()
     )
       return;
-    if (archived || emptyHistory || conversationUnavailable) return;
+    if (archived || emptyHistory || conversationUnavailable || isRestoring || remotePending) return;
     text = text.trim();
     const outgoingText = prepareMessage(text, explanationLevel, isPDF);
     const id = activeChat ?? crypto.randomUUID();
@@ -210,12 +270,14 @@ function Home() {
           {
             id: crypto.randomUUID(),
             role: "user",
+            remoteText: outgoingText,
             text: isPDF
               ? MAKE_EXAM_MSG
               : text,
           },
         ];
 
+    activeChatRef.current = id;
     setActiveChat(id);
     setMessages(content);
     saveConversation(id, content);
@@ -225,6 +287,7 @@ function Home() {
         {
           id: crypto.randomUUID(),
           role: "quagbot",
+          source: "local",
           text: getOutageReply(isPDF ? [] : content),
         },
       ];
@@ -258,6 +321,7 @@ function Home() {
       if (typeof reply !== "string" || !reply.trim()) {
         throw new Error("Empty response");
       }
+      const rawReply = reply;
       if (isPDF) {
         const exam = parseMarkdownJson(reply);
         console.log(exam)
@@ -276,7 +340,7 @@ function Home() {
 
       const completed = [
         ...content,
-        { id: crypto.randomUUID(), role: "quagbot", text: reply },
+        { id: crypto.randomUUID(), role: "quagbot", text: reply, remoteText: rawReply, source: "ai" },
       ];
       setMessages(completed);
       saveConversation(id, completed, backendId);
@@ -291,6 +355,7 @@ function Home() {
             {
               id: crypto.randomUUID(),
               role: "quagbot",
+              source: "local",
               text: getOutageReply(isPDF ? [] : content),
             },
           ];
@@ -315,6 +380,11 @@ function Home() {
 
   function startNewChat() {
     setConversationUnavailable(false);
+    messageRequest.current?.abort();
+    activeChatRef.current = null;
+    setIsRestoring(false);
+    setMessageSyncError(null);
+    setRemotePending(false);
     if (pendingReply.current) {
       pendingReply.current.abort();
       pendingReply.current = null;
@@ -328,18 +398,50 @@ function Home() {
     setChatVersion((version) => version + 1);
   }
 
-  function loadChat(chat) {
+  async function loadChat(chat) {
     pendingReply.current?.abort();
     pendingReply.current = null;
+    messageRequest.current?.abort();
+    activeChatRef.current = chat.id;
     setIsLoading(false);
+    setIsRestoring(false);
+    setRemotePending(false);
+    setMessageSyncError(null);
     setRequestError(null);
     setConversationUnavailable(false);
-    const last = chat.content.at(-1);
-    setFailedQuestion(last?.role === "user" ? last.text : null);
-    setMessages(chat.content.length ? [...chat.content] : []);
+    const cached = chatsRef.current.find((item) => item.id === chat.id) ?? chat;
+    const last = cached.content.at(-1);
+    setFailedQuestion(last?.role === 'user' ? last.text : null);
+    setMessages([...cached.content]);
     setActiveChat(chat.id);
     setChatVersion((version) => version + 1);
     setHistoryOpen(false);
+    if (!cached.backendConversationId || identityRef.current === 'guest') return;
+    const identity = identityRef.current;
+    const controller = new AbortController();
+    messageRequest.current = controller;
+    setIsRestoring(true);
+    try {
+      const records = await listMessages(cached.backendConversationId, { signal: controller.signal });
+      if (controller.signal.aborted || identityRef.current !== identity || activeChatRef.current !== chat.id) return;
+      const latest = chatsRef.current.find((item) => item.id === chat.id);
+      if (!latest) return;
+      const restored = restoreMessages(records, latest.content);
+      updateChats((previous) => previous.map((item) => item.id === chat.id ? { ...item, content: restored.messages } : item));
+      setMessages(restored.messages);
+      setRemotePending(restored.pending);
+      const tail = restored.messages.at(-1);
+      setFailedQuestion(!restored.pending && tail?.role === 'user' ? tail.text : null);
+    } catch (error) {
+      if (!controller.signal.aborted && identityRef.current === identity && activeChatRef.current === chat.id) {
+        setMessageSyncError(error.status === 404
+          ? 'This conversation is unavailable on the server. Cached messages are kept.'
+          : 'Could not sync messages. Showing the browser cache.');
+        setConversationUnavailable(error.status === 404);
+      }
+    } finally {
+      if (!controller.signal.aborted && identityRef.current === identity && activeChatRef.current === chat.id) setIsRestoring(false);
+    }
   }
 
   function deleteChat(id) {
@@ -351,14 +453,19 @@ function Home() {
       )
     )
       return;
+    if (chat.backendConversationId) {
+      hiddenIds.current.add(chat.backendConversationId);
+      try { localStorage.setItem(`${storageKey}:hidden`, JSON.stringify([...hiddenIds.current])); }
+      catch { setStorageError('This chat is hidden for this visit, but could reappear after reload.'); }
+    }
     if (id === activeChat) startNewChat();
-    setChats((previous) => browserHistory.remove(previous, id));
+    updateChats((previous) => browserHistory.remove(previous, id));
   }
 
   function renameChat(id, title) {
     const trimmed = title.trim();
     if (!trimmed) return;
-    setChats((previous) => browserHistory.rename(previous, id, trimmed));
+    updateChats((previous) => browserHistory.rename(previous, id, trimmed));
   }
 
   const selectedChat = chats.find((chat) => chat.id === activeChat);
@@ -367,13 +474,14 @@ function Home() {
   );
 
   const emptyHistory = Boolean(
-    selectedChat && selectedChat.content.length === 0,
+    selectedChat && !selectedChat.backendConversationId && selectedChat.content.length === 0,
   );
 
   const history = (
     <ChatHistory
       chats={chats}
-      loading={!storageKey}
+      loading={!storageKey || historyLoading}
+      syncError={historyError}
       onSelectChat={loadChat}
       activeChat={activeChat}
       onNewChat={startNewChat}
@@ -396,12 +504,15 @@ function Home() {
         onNewChat={startNewChat}
         onOpenHistory={() => setHistoryOpen(true)}
         storageError={storageError}
+        syncLoading={isRestoring}
+        syncPending={remotePending}
+        syncError={messageSyncError}
         ready={Boolean(storageKey)}
         archived={archived}
         emptyHistory={emptyHistory}
         maintenance={maintenance}
         cooldownSeconds={cooldownSeconds}
-        sendDisabled={emptyHistory || conversationUnavailable}
+        sendDisabled={emptyHistory || conversationUnavailable || isRestoring || remotePending}
         messages={messages}
         title={
           chats.find((chat) => chat.id === activeChat)?.title ?? "New chat"

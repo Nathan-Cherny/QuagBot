@@ -2,34 +2,52 @@
 -- Supabase Auth already stores accounts + password hashes in auth.users.
 -- This adds ONLY app data, keyed to auth.users.id (uuid).
 
+create function public.generate_join_code()
+returns text
+language plpgsql
+as $$
+declare
+  code text;
+  alphabet text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+begin
+  loop
+    select string_agg(
+      substr(
+        alphabet,
+        floor(random() * length(alphabet) + 1)::int,
+        1
+      ),
+      ''
+    )
+    into code
+    from generate_series(1, 5);
+
+    exit when not exists (
+      select 1
+      from public.classrooms
+      where join_code = code
+    );
+  end loop;
+
+  return code;
+end;
+$$;
+
 create table public.profiles (
   id uuid PRIMARY KEY references auth.users(id) on delete cascade,
   display_name text NOT NULL,
   role text NOT NULL DEFAULT 'student' check (role in ('student', 'teacher')),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  last_message_at timestamptz,
+  remaining_messages integer not default 50 check (remaining_messages >= 0),
 );
 
 create table public.classrooms (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text not null,
-  join_code text not null unique,
+  join_code text not null unique default public.generate_join_code(),
   owner_id uuid not null REFERENCES public.profiles(id) on delete cascade,
   created_at timestamptz not null default now()
-);
-
-CREATE TABLE public.chat_sessions (
-  session_id uuid PRIMARY KEY default gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE cascade,
-  class_id uuid REFERENCES public.classrooms(id) ON DELETE cascade,
-  title text NOT NULL
-);
-
-CREATE TABLE public.chat_messages (
-  message_id uuid PRIMARY KEY default gen_random_uuid(),
-  session_id uuid NOT NULL references public.chat_sessions(session_id) ON DELETE cascade,
-  sender_role text NOT NULL DEFAULT 'student' check (sender_role in ('user', 'assistant')),
-  message_content text NOT NULL, 
-  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE public.classroom_members (
@@ -52,6 +70,30 @@ begin
   return new;
 end;
 $$;
+
+create function public.validate_classroom_owner()
+returns trigger
+language plpgsql
+as $$
+begin
+  if not exists (
+    select 1
+    from public.profiles
+    where id = new.owner_id
+      and role = 'teacher'
+  ) then
+    raise exception 'Classroom owner must be a teacher';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger validate_classroom_owner_trigger
+before insert or update of owner_id
+on public.classrooms
+for each row
+execute function public.validate_classroom_owner();
 
 create trigger on_auth_user_created
   after insert on auth.users

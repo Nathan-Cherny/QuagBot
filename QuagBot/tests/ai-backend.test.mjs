@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { AIError, callAI, createAIConversation, listAIConversations, listAIMessages, parseChatResponse, readResponse } from '../src/lib/ai-backend.mjs';
+import { AIError, callAI, createAIConversation, listAIConversations, listAIMessages, parseChatResponse, readResponse, sendAIMessage } from '../src/lib/ai-backend.mjs';
 
 const completion = 'data: {"status":"completed","response":{"reply":"Washington commanded the Continental Army."}}\n\n';
 
@@ -45,7 +45,7 @@ test('local HTTP integration: forwards identity and conversation, handles retrie
       if (failCreate) { failCreate = false; res.writeHead(503); res.end('private internal error'); return; }
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end('{"id":"backend-conversation-1"}');
-    } else if (req.url === '/chat/stream') {
+    } else if (req.url === '/chat') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       res.write(': heartbeat\n\n');
       res.end(completion);
@@ -72,17 +72,18 @@ test('local HTTP integration: forwards identity and conversation, handles retrie
   });
   const chatOptions = { ...options, body: { conversation_id: conversation.id, message: 'Who was Washington?' } };
   for (const message of ['Who was Washington?', 'Tell me more']) {
-    const reply = await callAI('/chat/stream', { ...chatOptions, body: { ...chatOptions.body, message } }, async (res) => parseChatResponse(await readResponse(res), res.headers.get('content-type')));
+    const reply = await sendAIMessage({ userId: options.userId, conversationId: conversation.id, message });
     assert.match(reply.reply, /Washington/);
   }
-  assert.deepEqual(requests.filter((request) => request.path === '/chat/stream').map((request) => request.body.conversation_id), [conversation.id, conversation.id]);
+  assert.deepEqual(requests.filter((request) => request.path === '/chat').map((request) => request.body.conversation_id), [conversation.id, conversation.id]);
+  assert.ok(!requests.some((request) => request.path === '/chat/stream'));
   assert.equal(requests[3].userId, options.userId);
   assert.equal(requests[3].body.message, 'Who was Washington?');
   await assert.rejects(callAI('/missing', options, readResponse), /404/);
   await assert.rejects(callAI('/slow', { ...options, timeoutMs: 50 }, readResponse), (error) => error.status === 504);
   const controller = new AbortController();
   controller.abort();
-  await assert.rejects(callAI('/chat/stream', { ...chatOptions, signal: controller.signal }, readResponse), (error) => error.status === 499);
+  await assert.rejects(callAI('/chat', { ...chatOptions, signal: controller.signal }, readResponse), (error) => error.status === 499);
 });
 
 test('history GET requests forward identity with no body and validate responses', async (t) => {
@@ -95,7 +96,8 @@ test('history GET requests forward identity with no body and validate responses'
     res.writeHead(200, { 'Content-Type': 'application/json' });
     if (req.headers['x-user-id'] === 'bad-schema') { res.end('{}'); return; }
     res.end(JSON.stringify(req.url === '/conversations' ? [
-      { id: 'server-id', title: 'Saved chat', updated_at: '2026-11-03T12:00:00Z' },
+      { id: 'server-id', domain: 'education', title: 'Saved chat', updated_at: '2026-11-03T12:00:00Z' },
+      { id: 'medical-id', domain: 'medical', title: 'Other domain' },
     ] : [{ id: 'message-id', role: 'assistant', content: 'Saved answer', status: 'completed' }]));
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -105,7 +107,7 @@ test('history GET requests forward identity with no body and validate responses'
     if (previous === undefined) delete process.env.AI_API_URL; else process.env.AI_API_URL = previous;
     server.closeAllConnections(); server.close();
   });
-  assert.equal((await listAIConversations({ userId: 'verified-user' }))[0].id, 'server-id');
+  assert.deepEqual((await listAIConversations({ userId: 'verified-user' })).map((chat) => chat.id), ['server-id']);
   assert.equal((await listAIMessages({ userId: 'verified-user', conversationId: 'server-id' }))[0].content, 'Saved answer');
   assert.ok(requests.every((request) => request.method === 'GET' && request.body === '' && request.userId === 'verified-user'));
   assert.equal(requests[1].path, '/conversations/server-id/messages');
@@ -113,7 +115,7 @@ test('history GET requests forward identity with no body and validate responses'
   await assert.rejects(listAIMessages({ userId: 'bad-schema', conversationId: 'server-id' }), /invalid messages/);
   const unavailable = (error) => error.status === 404 && /no longer available for your account/.test(error.message) && !/try again/i.test(error.message);
   await assert.rejects(listAIMessages({ userId: 'missing-conversation', conversationId: 'server-id' }), unavailable);
-  await assert.rejects(callAI('/chat/stream', { userId: 'missing-conversation', body: {} }, readResponse), unavailable);
+  await assert.rejects(callAI('/chat', { userId: 'missing-conversation', body: {} }, readResponse), unavailable);
 });
 
 test('missing backend configuration fails explicitly', async () => {
@@ -137,7 +139,7 @@ test('maintenance prevents any outgoing backend request', async (t) => {
     else process.env.AI_MAINTENANCE_MODE = previous;
   });
   const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('Must not contact AI'); });
-  await assert.rejects(callAI('/chat/stream', { userId: 'user', body: {} }, readResponse), (error) => error.status === 503);
+  await assert.rejects(callAI('/chat', { userId: 'user', body: {} }, readResponse), (error) => error.status === 503);
   assert.equal(fetch.mock.callCount(), 0);
 });
 
@@ -149,5 +151,12 @@ test('rate limits preserve status and Retry-After', async (t) => {
     else process.env.AI_API_URL = previous;
   });
   t.mock.method(globalThis, 'fetch', async () => new Response('', { status: 429, headers: { 'Retry-After': '90' } }));
-  await assert.rejects(callAI('/chat/stream', { userId: 'user', body: {} }, readResponse), (error) => error.status === 429 && error.retryAfter === 90);
+  await assert.rejects(callAI('/chat', { userId: 'user', body: {} }, readResponse), (error) => error.status === 429 && error.retryAfter === 90);
+});
+
+ test('current backend status events surface failed generation instead of a missing conversation', () => {
+  const stream = 'event: status\ndata: {"status":"received","response":null}\n\n'
+    + 'event: status\ndata: {"status":"generating","response":null}\n\n'
+    + 'event: status\ndata: {"status":"failed","message":"The response could not be generated.","response":null}\n\n';
+  assert.throws(() => parseChatResponse(stream), (error) => error.status === 502 && /could not complete/.test(error.message));
 });

@@ -45,7 +45,7 @@ function Profile() {
   }
 
   if (!user) {
-    return <PageWrapper basic><p>Loading…</p></PageWrapper>;
+    return <PageWrapper basic><p className="text-center">Loading…</p></PageWrapper>;
   }
 
   return (
