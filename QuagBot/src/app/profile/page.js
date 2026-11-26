@@ -17,6 +17,7 @@ import {
   rowValueConnect,
 } from "../components/ui/styles";
 import { createClient } from "@/lib/supabase/client";
+import { setTeacherMode } from "@/lib/teacherMode";
 
 function Profile() {
   const [user, setUser] = useState(null);
@@ -38,6 +39,7 @@ function Profile() {
 
   async function handleLogout() {
     await createClient().auth.signOut();
+    setTeacherMode(false);
     router.push("/login");
     router.refresh();
   }

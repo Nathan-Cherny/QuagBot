@@ -19,6 +19,7 @@ import {
   rowLabel,
 } from "../components/ui/styles";
 import { createClient } from "@/lib/supabase/client";
+import { setTeacherMode } from "@/lib/teacherMode";
 
 function LogIn() {
   const [email, setEmail] = useState("");
@@ -42,15 +43,12 @@ function LogIn() {
       return;
     }
     if (data.user?.user_metadata?.account_type === "teacher") {
-      const { error: signOutError } = await supabase.auth.signOut();
-      if (signOutError) {
-        setError(`Could not clear the teacher session: ${signOutError.message}`);
-        return;
-      }
+      setTeacherMode(true);
       router.push("/teacherdash");
       router.refresh();
       return;
     }
+    setTeacherMode(false);
     router.push("/");
     router.refresh(); // re-run server code so it sees the new session cookie
   }
