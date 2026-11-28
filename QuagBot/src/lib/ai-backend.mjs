@@ -42,6 +42,7 @@ export function normalizeReply(payload) {
 }
 
 export function parseChatResponse(text, contentType = "") {
+  console.log(JSON.stringify(text))
   if (contentType.includes("application/json")) {
     try {
       return normalizeReply(JSON.parse(text));

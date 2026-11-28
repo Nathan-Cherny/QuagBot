@@ -27,6 +27,7 @@ function Profile() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) return;
+      console.log(`USER ID: ${data.user.id}`)
       setUser({
         name: data.user.user_metadata?.display_name ?? "Student",
         email: data.user.email,
