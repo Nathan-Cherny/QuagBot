@@ -82,14 +82,14 @@ function ChatWindow({ messages, isLoading, onSend, onNewChat, responseStyle, err
         <div className="min-h-0 flex-1 overflow-y-auto p-space-5 max-[900px]:p-space-3 [overflow-anchor:none]" ref={scrollRef}>
           <div ref={contentRef} className="flex flex-col gap-space-3">
             {messages.map((message) => (
-              <ChatMessage key={message.id} role={message.role} text={message.text} isPDF={message.isPDF} responseStyle={responseStyle} animateWelcome={message.id === 'welcome' && !messages.some((item) => item.role === 'user')} />
+              <ChatMessage key={message.id} role={message.role} text={message.text} isPDF={message.isPDF} streaming={message.streaming} responseStyle={responseStyle} animateWelcome={message.id === 'welcome' && !messages.some((item) => item.role === 'user')} />
             ))}
 
             {!sendDisabled && !messages.some((message) => message.role === 'user') && (
               <SuggestedQuestions onSelect={onSend} disabled={isLoading || sendDisabled || !ready || archived} />
             )}
 
-            {isLoading && (
+            {isLoading && !messages.at(-1)?.streaming && (
               <div className={chatMessageRow}>
                 <img src="/QuagBotLogo.png" alt="Bot" className={chatAvatar} />
                 <div role="status" className="flex flex-wrap items-center gap-space-2 px-space-4 py-space-3 text-sm text-text-muted">

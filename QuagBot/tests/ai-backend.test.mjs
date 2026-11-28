@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { AIError, callAI, createAIConversation, listAIConversations, listAIMessages, parseChatResponse, readResponse, sendAIMessage } from '../src/lib/ai-backend.mjs';
+import { AIError, callAI, createAIConversation, listAIConversations, listAIMessages, parseChatResponse, readResponse, sendAIMessage, streamAIMessage } from '../src/lib/ai-backend.mjs';
 
 const completion = 'data: {"status":"completed","response":{"reply":"Washington commanded the Continental Army."}}\n\n';
 
@@ -159,4 +159,109 @@ test('rate limits preserve status and Retry-After', async (t) => {
     + 'event: status\ndata: {"status":"generating","response":null}\n\n'
     + 'event: status\ndata: {"status":"failed","message":"The response could not be generated.","response":null}\n\n';
   assert.throws(() => parseChatResponse(stream), (error) => error.status === 502 && /could not complete/.test(error.message));
+});
+
+const sse = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+const statuses = sse('status', { status: 'received', response: null }) + sse('status', { status: 'generating', response: null });
+
+async function readEvents(stream) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  const events = [];
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) if (line) events.push(JSON.parse(line));
+  }
+  return events;
+}
+
+async function withBackend(t, handler) {
+  const server = createServer(handler);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const previous = process.env.AI_API_URL;
+  process.env.AI_API_URL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => {
+    if (previous === undefined) delete process.env.AI_API_URL; else process.env.AI_API_URL = previous;
+    server.closeAllConnections(); server.close();
+  });
+}
+
+test('streamAIMessage forwards deltas as they arrive, before the backend finishes', async (t) => {
+  let finish;
+  const finished = new Promise((resolve) => { finish = resolve; });
+  await withBackend(t, (req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    // Split an event across two writes to prove partial blocks are buffered.
+    const first = sse('delta', { delta: 'General Howe ' });
+    res.write(statuses + first.slice(0, 20));
+    setTimeout(() => res.write(first.slice(20) + sse('delta', { delta: 'was British.' })), 10);
+    finished.then(() => res.end(sse('status', { status: 'completed', response: { reply: 'General Howe was British.' } }) + 'data: [DONE]\n\n'));
+  });
+  const stream = await streamAIMessage({ userId: 'user', conversationId: 'c1', message: 'Who was Howe?' });
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  const seen = [];
+  let buffer = '';
+  while (seen.length < 2) {
+    const { done, value } = await reader.read();
+    assert.ok(!done, 'stream ended before deltas arrived');
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) if (line) seen.push(JSON.parse(line));
+  }
+  // The backend has not completed yet, but both deltas are already available.
+  assert.deepEqual(seen, [{ type: 'delta', text: 'General Howe ' }, { type: 'delta', text: 'was British.' }]);
+  finish();
+  const rest = await readEvents(new ReadableStream({
+    async start(controller) {
+      controller.enqueue(new TextEncoder().encode(buffer));
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        controller.enqueue(value);
+      }
+      controller.close();
+    },
+  }));
+  assert.deepEqual(rest, [{ type: 'done', reply: 'General Howe was British.' }]);
+});
+
+test('streamAIMessage reports mid-answer failures as an error event and early failures as rejections', async (t) => {
+  await withBackend(t, (req, res) => {
+    if (req.headers['x-user-id'] === 'missing') { res.writeHead(404); res.end('nope'); return; }
+    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    res.write(sse('delta', { delta: 'Partial ' }));
+    setTimeout(() => res.end(sse('status', { status: 'failed', response: null })), 10);
+  });
+  const events = await readEvents(await streamAIMessage({ userId: 'user', conversationId: 'c1', message: 'Hi' }));
+  assert.deepEqual(events[0], { type: 'delta', text: 'Partial ' });
+  assert.equal(events[1].type, 'error');
+  assert.equal(events[1].status, 502);
+  assert.match(events[1].message, /could not complete/);
+  await assert.rejects(streamAIMessage({ userId: 'missing', conversationId: 'c1', message: 'Hi' }), (error) => error.status === 404);
+});
+
+test('streamAIMessage errors when the backend ends without a completed answer, and wraps JSON replies', async (t) => {
+  await withBackend(t, (req, res) => {
+    if (req.headers['x-user-id'] === 'json') {
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"reply":"Plain answer"}'); return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    res.end(sse('delta', { delta: 'Cut off' }));
+  });
+  const events = await readEvents(await streamAIMessage({ userId: 'user', conversationId: 'c1', message: 'Hi' }));
+  assert.equal(events.at(-1).type, 'error');
+  assert.match(events.at(-1).message, /ended without an answer/);
+  assert.deepEqual(await readEvents(await streamAIMessage({ userId: 'json', conversationId: 'c1', message: 'Hi' })), [{ type: 'done', reply: 'Plain answer' }]);
+});
+
+test('parseChatResponse ignores delta events and still returns the completed reply', () => {
+  const stream = statuses + sse('delta', { delta: 'Hello' }) + sse('status', { status: 'completed', response: { reply: 'Hello' } });
+  assert.deepEqual(parseChatResponse(stream), { reply: 'Hello' });
 });

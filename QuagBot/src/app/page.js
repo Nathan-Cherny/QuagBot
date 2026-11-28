@@ -7,7 +7,7 @@ import ChatHistory from "./components/Chat/ChatHistory";
 import MobileHistory from "./components/Chat/MobileHistory";
 import ChatSettings from "./components/Chat/ChatSettings";
 import PageWrapper from "./components/Layout/PageWrapper";
-import { createConversation, sendMessage, listConversations, listMessages } from "../lib/api/chat";
+import { createConversation, streamMessage, listConversations, listMessages } from "../lib/api/chat";
 import { getOutageReply } from "../lib/chat";
 import {
   GeneratePracticeExam,
@@ -298,6 +298,8 @@ function Home() {
       return;
     }
     const controller = new AbortController();
+    // Reused for the streaming preview and the final message so React keeps one element.
+    const botMessageId = crypto.randomUUID();
     pendingReply.current = controller;
     setFailedQuestion(null);
     setRequestError(null);
@@ -314,8 +316,19 @@ function Home() {
         backendId = conversation.id;
         saveConversation(id, content, backendId);
       }
-      let { reply } = await sendMessage(backendId, outgoingText, {
+      // Show the answer as it arrives. Practice exams are JSON that only makes
+      // sense once complete, so those wait for the final reply.
+      let { reply } = await streamMessage(backendId, outgoingText, {
         signal: controller.signal,
+        onDelta: isPDF
+          ? undefined
+          : (partial) => {
+              if (controller.signal.aborted) return;
+              setMessages([
+                ...content,
+                { id: botMessageId, role: "quagbot", text: partial, source: "ai", streaming: true },
+              ]);
+            },
       });
       if (controller.signal.aborted) return;
       if (typeof reply !== "string" || !reply.trim()) {
@@ -340,12 +353,14 @@ function Home() {
 
       const completed = [
         ...content,
-        { id: crypto.randomUUID(), role: "quagbot", text: reply, remoteText: rawReply, source: "ai" },
+        { id: botMessageId, role: "quagbot", text: reply, remoteText: rawReply, source: "ai" },
       ];
       setMessages(completed);
       saveConversation(id, completed, backendId);
     } catch (error) {
       if (!controller.signal.aborted) {
+        // Drop any partially streamed answer; the question is retried or replaced below.
+        setMessages(content);
         if (![400, 401, 404].includes(error.status)) {
           const seconds = Math.min(86400, Math.max(30, error.retryAfter || 30));
           cooldownUntil.current = Date.now() + seconds * 1000;

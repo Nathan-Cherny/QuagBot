@@ -42,6 +42,7 @@ export function normalizeReply(payload) {
 }
 
 export function parseChatResponse(text, contentType = "") {
+  console.log(JSON.stringify(text))
   if (contentType.includes("application/json")) {
     try {
       return normalizeReply(JSON.parse(text));
@@ -52,32 +53,8 @@ export function parseChatResponse(text, contentType = "") {
   }
   let completed;
   for (const block of text.split(/\r?\n\r?\n/)) {
-    let event = "message";
-    const lines = [];
-    for (const line of block.split(/\r?\n/)) {
-      if (line.startsWith("event:")) event = line.slice(6).trim();
-      if (line.startsWith("data:")) lines.push(line.slice(5).replace(/^ /, ""));
-    }
-    const raw = lines.join("\n");
-    if (!raw || raw.trim() === "[DONE]") continue;
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new AIError("The AI service returned an invalid stream.");
-    }
-    if (
-      event === "error" ||
-      data?.status === "error" ||
-      data?.status === "failed"
-    ) {
-      throw new AIError(
-        "The AI service could not complete this answer. Please try again.",
-      );
-    }
-    if (data?.status === "completed" || event === "completed") {
-      completed = normalizeReply(data?.response);
-    }
+    const event = interpretSSEBlock(block);
+    if (event?.type === "completed") completed = { reply: event.reply };
   }
   if (!completed)
     throw new AIError(
@@ -86,7 +63,148 @@ export function parseChatResponse(text, contentType = "") {
   return completed;
 }
 
-export async function callAI(path, { userId, body, signal, timeoutMs = 60000, method = 'POST' }, consume) {
+// Interprets one SSE block (the text between blank lines). Returns
+// { type: "delta", text } for a partial chunk of the answer,
+// { type: "completed", reply } for the final answer, or null for anything
+// else (heartbeats, progress statuses, [DONE]). Throws on failures.
+export function interpretSSEBlock(block) {
+  let event = "message";
+  const lines = [];
+  for (const line of block.split(/\r?\n/)) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    if (line.startsWith("data:")) lines.push(line.slice(5).replace(/^ /, ""));
+  }
+  const raw = lines.join("\n");
+  if (!raw || raw.trim() === "[DONE]") return null;
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new AIError("The AI service returned an invalid stream.");
+  }
+  if (
+    event === "error" ||
+    data?.status === "error" ||
+    data?.status === "failed"
+  ) {
+    throw new AIError(
+      "The AI service could not complete this answer. Please try again.",
+    );
+  }
+  if (data?.status === "completed" || event === "completed") {
+    return { type: "completed", reply: normalizeReply(data?.response).reply };
+  }
+  if (event === "delta" && typeof data?.delta === "string" && data.delta) {
+    return { type: "delta", text: data.delta };
+  }
+  return null;
+}
+
+// Reads the backend stream incrementally and yields delta/completed events as
+// soon as each SSE block arrives. Enforces the same size limit as readResponse
+// and fails if the stream ends without a completed answer.
+async function* readChatEvents(body) {
+  if (!body) throw new AIError("The AI service returned an empty response.");
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let size = 0;
+  let completed = false;
+  function* handle(block) {
+    const event = interpretSSEBlock(block);
+    if (!event) return;
+    if (event.type === "completed") completed = true;
+    yield event;
+  }
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_RESPONSE_BYTES)
+        throw new AIError("The AI service response was too large.");
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split(/\r?\n\r?\n/);
+      buffer = blocks.pop();
+      for (const block of blocks) yield* handle(block);
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) yield* handle(buffer);
+    if (!completed)
+      throw new AIError(
+        "The AI service ended without an answer. Please try again.",
+      );
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
+// Turns backend events into newline-delimited JSON for the browser:
+//   {"type":"delta","text":"..."}   a new piece of the answer
+//   {"type":"done","reply":"..."}   the full, final answer
+//   {"type":"error","message":"...","status":502,"retryAfter":30}
+function chatEventStream(response, { cleanup, abort, toAIError }) {
+  const encoder = new TextEncoder();
+  const events = readChatEvents(response.body);
+  const write = (controller, payload) => {
+    try {
+      controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+    } catch {
+      // The browser already disconnected.
+    }
+  };
+  return new ReadableStream({
+    async pull(controller) {
+      try {
+        const { done, value } = await events.next();
+        if (done) {
+          cleanup();
+          controller.close();
+        } else if (value.type === "completed") {
+          write(controller, { type: "done", reply: value.reply });
+        } else {
+          write(controller, { type: "delta", text: value.text });
+        }
+      } catch (error) {
+        const failure = toAIError(error);
+        cleanup();
+        write(controller, {
+          type: "error",
+          message: failure.message,
+          status: failure.status,
+          retryAfter: failure.retryAfter,
+        });
+        try {
+          controller.close();
+        } catch {
+          // Already closed.
+        }
+      }
+    },
+    cancel() {
+      cleanup();
+      abort();
+    },
+  });
+}
+
+function singleReplyStream(reply) {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(
+        new TextEncoder().encode(`${JSON.stringify({ type: "done", reply })}\n`),
+      );
+      controller.close();
+    },
+  });
+}
+
+// `consume(response, { cleanup, abort, toAIError })` handles the backend response.
+// With `streaming: true`, consume may return a value that is still being read
+// (such as a stream); the timeout and abort wiring then stay in place until
+// consume's result calls `cleanup()`. Otherwise cleanup runs on return.
+export async function callAI(path, { userId, body, signal, timeoutMs = 60000, method = 'POST', streaming = false }, consume) {
   if (process.env.AI_MAINTENANCE_MODE === 'true') {
     throw new AIError('AI chat is temporarily unavailable. You can still view your saved chats and continue with limited capabilities.', 503, 60);
   }
@@ -117,6 +235,21 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
   const abort = () => controller.abort();
   if (signal?.aborted) controller.abort();
   signal?.addEventListener("abort", abort, { once: true });
+  const cleanup = () => {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+  };
+  const toAIError = (error) => {
+    if (error instanceof AIError) return error;
+    if (timedOut)
+      return new AIError(
+        "The AI service took too long to respond. Please try again.",
+        504,
+      );
+    if (signal?.aborted) return new AIError("The request was cancelled.", 499);
+    return new AIError("Could not reach the AI service. Please try again.", 502);
+  };
+  let handedOff = false;
 
   try {
     const response = await fetch(`${base.href.replace(/\/$/, "")}${path}`, {
@@ -151,19 +284,13 @@ export async function callAI(path, { userId, body, signal, timeoutMs = 60000, me
       throw new AIError(`The AI service rejected the request (${response.status}). Please try again.`);
     }
 
-    return await consume(response);
+    const result = await consume(response, { cleanup, abort, toAIError });
+    handedOff = streaming;
+    return result;
   } catch (error) {
-    if (error instanceof AIError) throw error;
-    if (timedOut)
-      throw new AIError(
-        "The AI service took too long to respond. Please try again.",
-        504,
-      );
-    if (signal?.aborted) throw new AIError("The request was cancelled.", 499);
-    throw new AIError("Could not reach the AI service. Please try again.", 502);
+    throw toAIError(error);
   } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener("abort", abort);
+    if (!handedOff) cleanup();
   }
 }
 
@@ -219,6 +346,27 @@ export function sendAIMessage({ userId, conversationId, message, signal }) {
     body: { conversation_id: conversationId, message },
     signal,
   }, async (response) => parseChatResponse(await readResponse(response), response.headers.get('content-type') ?? ''));
+}
+
+// Like sendAIMessage, but resolves as soon as the backend starts answering with
+// a ReadableStream of newline-delimited JSON events (see chatEventStream).
+// Errors before the first byte reject; errors mid-answer arrive as an "error" event.
+export function streamAIMessage({ userId, conversationId, message, signal }) {
+  return callAI('/chat', {
+    userId,
+    body: { conversation_id: conversationId, message },
+    signal,
+    streaming: true,
+  }, async (response, controls) => {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      // Non-streaming backend response: deliver it as a single final event.
+      const { reply } = parseChatResponse(await readResponse(response), contentType);
+      controls.cleanup();
+      return singleReplyStream(reply);
+    }
+    return chatEventStream(response, controls);
+  });
 }
 
 export async function listAIConversations({ userId, signal }) {
